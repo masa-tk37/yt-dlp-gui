@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for yt-dlp GUI",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
