@@ -29,13 +29,10 @@ export default defineConfig({
   envPrefix: ["TAURI_ENV_*"],
   optimizeDeps: {
     include: ["@tauri-apps/api/core", "@tauri-apps/api/event"],
-    esbuildOptions: {
-      target: "esnext",
-    },
   },
   build: {
     target: "safari13", // macOS-only: Tauri uses WebKit
-    minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
+    minify: !process.env.TAURI_ENV_DEBUG ? "oxc" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
 })

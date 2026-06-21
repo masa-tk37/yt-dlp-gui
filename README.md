@@ -35,19 +35,20 @@ bun dev
 ### Build
 
 ```bash
-bun build
+bun run build
 ```
 
 ### Test & Type Check
 
 ```bash
-bun test
+bun run test
 bun type-check
 ```
 
 ## Tech Stack
 
-- **Frontend**: React 19 + Vite 6 + TypeScript
-- **Backend**: Rust (Tauri v2 commands)
+- **Frontend**: React 19 + Vite 8 + TypeScript 6
+- **Backend**: Rust + Tauri v2
 - **IPC**: Tauri invoke (no REST API)
 - **Process management**: yt-dlp as a child process, stdout JSON parsing
+- **Linter / Formatter**: Biome
