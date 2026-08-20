@@ -113,11 +113,33 @@ pub(crate) fn parse_phase(line: &str) -> Option<String> {
     }
 }
 
+const MERGER_MARKER: &str = "Merging formats into \"";
+
+/// The merged output path is announced only here, so without it a job that merged
+/// video and audio would report the audio fragment that the merge already deleted.
+pub(crate) fn parse_merged_filename(line: &str) -> Option<String> {
+    if !line.contains("[Merger]") {
+        return None;
+    }
+    let start = line.find(MERGER_MARKER)? + MERGER_MARKER.len();
+    let rest = &line[start..];
+    let name = &rest[..rest.rfind('"')?];
+    (!name.is_empty()).then(|| name.to_string())
+}
+
+/// yt-dlp only warns and exits 0 when it has to skip a merge for lack of ffmpeg,
+/// leaving the video and audio streams as separate files. A zero exit status alone
+/// therefore does not mean the output is usable. Audio extraction instead fails the
+/// run outright, with a message pointing at `--ffmpeg-location`.
+pub(crate) fn ffmpeg_missing(stderr: &str) -> bool {
+    stderr.contains("but ffmpeg is not installed")
+        || stderr.contains("provide the path using --ffmpeg-location")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // --- parse_phase ---
 
     #[test]
     fn parse_phase_resolving() {
@@ -154,7 +176,64 @@ mod tests {
         assert_eq!(parse_phase(""), None);
     }
 
-    // --- parse_progress ---
+
+    #[test]
+    fn parse_merged_filename_extracts_path() {
+        assert_eq!(
+            parse_merged_filename("[Merger] Merging formats into \"My Video.mp4\""),
+            Some("My Video.mp4".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_merged_filename_keeps_quotes_inside_name() {
+        assert_eq!(
+            parse_merged_filename("[Merger] Merging formats into \"He said \"hi\".mp4\""),
+            Some("He said \"hi\".mp4".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_merged_filename_none_for_other_lines() {
+        assert_eq!(parse_merged_filename("[download] 50% of 100MiB"), None);
+        // a title echoing the marker must not be mistaken for the Merger line
+        assert_eq!(
+            parse_merged_filename("[download] Destination: Merging formats into \"x\".mp4"),
+            None
+        );
+        assert_eq!(
+            parse_merged_filename("[Merger] Merging formats into \"\""),
+            None
+        );
+    }
+
+
+    #[test]
+    fn ffmpeg_missing_detects_merge_warning() {
+        assert!(ffmpeg_missing(
+            "WARNING: You have requested merging of multiple formats but ffmpeg is not installed. The formats won't be merged"
+        ));
+    }
+
+    #[test]
+    fn ffmpeg_missing_detects_audio_extraction_error() {
+        assert!(ffmpeg_missing(
+            "ERROR: Postprocessing: ffprobe and ffmpeg not found. Please install or provide the path using --ffmpeg-location"
+        ));
+    }
+
+    #[test]
+    fn ffmpeg_missing_false_on_normal_stderr() {
+        assert!(!ffmpeg_missing(""));
+        assert!(!ffmpeg_missing(
+            "WARNING: [youtube] No supported JavaScript runtime could be found."
+        ));
+        // a video title is not evidence that ffmpeg is absent
+        assert!(!ffmpeg_missing(
+            "ERROR: unable to download \"why ffmpeg is not installed\""
+        ));
+    }
+
 
     #[test]
     fn parse_progress_valid() {
@@ -194,7 +273,6 @@ mod tests {
         assert_eq!(result.progress, 0.0);
     }
 
-    // --- parse_single_video ---
 
     #[test]
     fn parse_single_video_basic() {
@@ -242,7 +320,6 @@ mod tests {
         assert_eq!(info.formats[0].filesize, Some(12345));
     }
 
-    // --- parse_playlist ---
 
     #[test]
     fn parse_playlist_basic() {
@@ -275,7 +352,9 @@ mod tests {
             "entries": [{"url": "https://example.com/v", "duration": null}]
         });
         let info = parse_playlist(&data);
-        // title falls back to url when title field is missing
-        assert_eq!(info.entries.as_ref().unwrap()[0].title, "https://example.com/v");
+        assert_eq!(
+            info.entries.as_ref().unwrap()[0].title,
+            "https://example.com/v"
+        );
     }
 }

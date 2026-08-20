@@ -107,7 +107,6 @@ export function DownloadForm({
 
   return (
     <section style={{ ...sectionCard, padding: "22px 22px" }}>
-      {/* Section label */}
       <div
         style={{
           fontSize: 13,
@@ -119,7 +118,6 @@ export function DownloadForm({
         paste a link to get started
       </div>
 
-      {/* URL input row */}
       <div style={{ marginBottom: 14 }}>
         <span style={fieldLabel}>Video URL</span>
         <div style={{ display: "flex", gap: 8 }}>
@@ -179,7 +177,6 @@ export function DownloadForm({
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div
           style={{
@@ -197,10 +194,8 @@ export function DownloadForm({
         </div>
       )}
 
-      {/* Result panel */}
       {videoInfo && (
         <div className="fade-in-up">
-          {/* Title row */}
           <div
             style={{
               background: "var(--bg-input)",
@@ -249,7 +244,6 @@ export function DownloadForm({
             )}
           </div>
 
-          {/* Playlist or Single Video */}
           {isPlaylist ? (
             <PlaylistView
               entries={videoInfo.entries ?? []}

@@ -42,7 +42,6 @@ export function DownloadQueue({
         flexDirection: "column",
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -122,7 +121,6 @@ export function DownloadQueue({
         </div>
       </div>
 
-      {/* Content */}
       {jobs.length === 0 ? (
         <div
           style={{

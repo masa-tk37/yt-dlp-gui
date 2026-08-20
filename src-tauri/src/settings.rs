@@ -52,7 +52,7 @@ impl SettingsStore {
                 AppError::Validation("Cannot determine home directory".to_string())
             })?;
             let path = PathBuf::from(&dir);
-            // Make absolute, then lexically normalize to prevent path traversal
+            // Normalized lexically to prevent path traversal
             let abs = if path.is_absolute() {
                 path.clone()
             } else {

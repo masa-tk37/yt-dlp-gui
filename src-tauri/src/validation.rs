@@ -99,7 +99,6 @@ mod tests {
         }
     }
 
-    // --- validate_url ---
 
     #[test]
     fn valid_public_urls() {
@@ -152,7 +151,6 @@ mod tests {
         assert!(validate_url("http://[::]/video").is_err());
     }
 
-    // --- is_private_ip unit tests ---
 
     #[test]
     fn ipv4_mapped_ipv6_detected_as_private() {
@@ -169,7 +167,6 @@ mod tests {
         assert!(!is_private_ip(&addr));
     }
 
-    // --- validate_format_id ---
 
     #[test]
     fn valid_format_ids() {

@@ -50,7 +50,6 @@ export function useJobSubscriptions(setJobs: Dispatch<SetStateAction<Job[]>>) {
       setJobs((prev) => {
         const existing = new Map(prev.map((j) => [j.id, j]))
         const merged = jobList.map((j) => existing.get(j.id) ?? j)
-        // keep optimistic jobs not yet in snapshot
         const snapshotIds = new Set(jobList.map((j) => j.id))
         const optimistic = prev.filter(
           (j) => !snapshotIds.has(j.id) && !TERMINAL_STATUSES.has(j.status),

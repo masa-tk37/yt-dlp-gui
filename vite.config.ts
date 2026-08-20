@@ -1,11 +1,10 @@
-import { defineConfig } from "vite"
-import react from "@vitejs/plugin-react"
 import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
 
 const host = process.env.TAURI_DEV_HOST
 const tauriConf = JSON.parse(
-  readFileSync(resolve(__dirname, "src-tauri/tauri.conf.json"), "utf-8"),
+  readFileSync(new URL("src-tauri/tauri.conf.json", import.meta.url), "utf-8"),
 )
 const appVersion: string = tauriConf.version
 const appName: string = tauriConf.productName

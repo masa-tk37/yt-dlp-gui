@@ -33,7 +33,6 @@ export function ConfirmModal({
         zIndex: 1000,
       }}
     >
-      {/* backdrop — closes modal on click */}
       <button
         type="button"
         aria-label="Close modal"

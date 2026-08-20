@@ -44,8 +44,10 @@ export function SingleVideoView({
             }}
           >
             <optgroup label="Presets">
-              <option value={FORMAT_PRESET_MP4}>MP4 (H.264 + AAC)</option>
-              <option value="">Best quality (auto)</option>
+              <option value={FORMAT_PRESET_MP4}>
+                MP4 (H.264 + AAC preferred)
+              </option>
+              <option value="">Best quality (any codec)</option>
               <option value={FORMAT_PRESET_AUDIO}>Audio only (MP3)</option>
             </optgroup>
             <optgroup label="Formats">

@@ -77,7 +77,6 @@ export function DownloadItem({ job, onCancel }: DownloadItemProps) {
         marginBottom: 8,
       }}
     >
-      {/* Top row: name + badge + cancel */}
       <div
         style={{
           display: "flex",
@@ -160,7 +159,6 @@ export function DownloadItem({ job, onCancel }: DownloadItemProps) {
         </div>
       </div>
 
-      {/* Progress bar */}
       {(isDownloading || isPending) && (
         <>
           <div
@@ -221,7 +219,6 @@ export function DownloadItem({ job, onCancel }: DownloadItemProps) {
         </>
       )}
 
-      {/* Error message */}
       {job.error && (
         <div
           style={{
