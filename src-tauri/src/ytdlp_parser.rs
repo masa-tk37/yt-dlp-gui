@@ -127,15 +127,6 @@ pub(crate) fn parse_merged_filename(line: &str) -> Option<String> {
     (!name.is_empty()).then(|| name.to_string())
 }
 
-/// yt-dlp only warns and exits 0 when it has to skip a merge for lack of ffmpeg,
-/// leaving the video and audio streams as separate files. A zero exit status alone
-/// therefore does not mean the output is usable. Audio extraction instead fails the
-/// run outright, with a message pointing at `--ffmpeg-location`.
-pub(crate) fn ffmpeg_missing(stderr: &str) -> bool {
-    stderr.contains("but ffmpeg is not installed")
-        || stderr.contains("provide the path using --ffmpeg-location")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,33 +196,6 @@ mod tests {
             parse_merged_filename("[Merger] Merging formats into \"\""),
             None
         );
-    }
-
-
-    #[test]
-    fn ffmpeg_missing_detects_merge_warning() {
-        assert!(ffmpeg_missing(
-            "WARNING: You have requested merging of multiple formats but ffmpeg is not installed. The formats won't be merged"
-        ));
-    }
-
-    #[test]
-    fn ffmpeg_missing_detects_audio_extraction_error() {
-        assert!(ffmpeg_missing(
-            "ERROR: Postprocessing: ffprobe and ffmpeg not found. Please install or provide the path using --ffmpeg-location"
-        ));
-    }
-
-    #[test]
-    fn ffmpeg_missing_false_on_normal_stderr() {
-        assert!(!ffmpeg_missing(""));
-        assert!(!ffmpeg_missing(
-            "WARNING: [youtube] No supported JavaScript runtime could be found."
-        ));
-        // a video title is not evidence that ffmpeg is absent
-        assert!(!ffmpeg_missing(
-            "ERROR: unable to download \"why ffmpeg is not installed\""
-        ));
     }
 
 

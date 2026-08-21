@@ -10,9 +10,10 @@ use tokio::sync::mpsc;
 use crate::error::AppError;
 use crate::types::{DownloadProgress, Job, JobStatus, Settings, VideoInfo};
 use crate::ytdlp;
+use crate::ytdlp_failure::{explain, ffmpeg_missing};
 use crate::ytdlp_parser::{
-    PROGRESS_PREFIX, ffmpeg_missing, parse_merged_filename, parse_phase, parse_playlist,
-    parse_progress, parse_single_video,
+    PROGRESS_PREFIX, parse_merged_filename, parse_phase, parse_playlist, parse_progress,
+    parse_single_video,
 };
 
 // Only the tail is kept, to bound memory on long runs; anything the caller must not
@@ -57,10 +58,9 @@ impl YtdlpExecutor {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::Process(format!(
-                "yt-dlp failed: {}",
-                stderr.trim()
-            )));
+            return Err(AppError::Process(
+                explain(&stderr).unwrap_or_else(|| format!("yt-dlp failed: {}", stderr.trim())),
+            ));
         }
 
         let data: serde_json::Value = serde_json::from_slice(&output.stdout)
@@ -165,17 +165,19 @@ impl YtdlpExecutor {
             stderr_result.map_err(|e| AppError::Internal(e.to_string()))?;
 
         // Before the exit-status branch: neither status is conclusive on its own
-        // (see ffmpeg_missing).
+        // (see ytdlp_failure::ffmpeg_missing).
         if saw_ffmpeg_missing {
             return Err(AppError::Process(FFMPEG_REQUIRED_MSG.to_string()));
         }
 
         if !exit_status.success() {
-            let msg = if stderr_text.trim().is_empty() {
-                format!("yt-dlp exited with {}", exit_status)
-            } else {
-                stderr_text.trim().to_string()
-            };
+            let msg = explain(&stderr_text).unwrap_or_else(|| {
+                if stderr_text.trim().is_empty() {
+                    format!("yt-dlp exited with {}", exit_status)
+                } else {
+                    stderr_text.trim().to_string()
+                }
+            });
             return Err(AppError::Process(msg));
         }
 

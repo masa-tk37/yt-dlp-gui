@@ -7,6 +7,7 @@ mod types;
 mod validation;
 mod ytdlp;
 mod ytdlp_executor;
+mod ytdlp_failure;
 mod ytdlp_parser;
 
 use std::sync::Arc;
