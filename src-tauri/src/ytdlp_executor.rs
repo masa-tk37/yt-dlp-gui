@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use parking_lot::Mutex;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -23,16 +22,22 @@ const STDERR_BUFFER_SIZE: usize = 100;
 const FFMPEG_REQUIRED_MSG: &str =
     "ffmpeg is required to merge video and audio. Install with: brew install ffmpeg";
 
+enum ProcessSlot {
+    Running(u32),
+    // cancel() arrived before run_process registered a pid; honoured at registration.
+    CancelRequested,
+}
+
 pub struct YtdlpExecutor {
     bin_path: PathBuf,
-    active_pids: Arc<Mutex<HashMap<String, u32>>>,
+    processes: Mutex<HashMap<String, ProcessSlot>>,
 }
 
 impl YtdlpExecutor {
     pub fn new(bin_path: PathBuf) -> Self {
         Self {
             bin_path,
-            active_pids: Arc::new(Mutex::new(HashMap::new())),
+            processes: Mutex::new(HashMap::new()),
         }
     }
 
@@ -110,8 +115,22 @@ impl YtdlpExecutor {
             .take()
             .ok_or_else(|| AppError::Process("No stderr handle".to_string()))?;
 
-        if let Some(pid) = child.id() {
-            self.active_pids.lock().insert(job.id.clone(), pid);
+        // Checked under the same guard as registration so a cancel cannot slip between them.
+        let cancel_requested = {
+            let mut processes = self.processes.lock();
+            if matches!(processes.get(&job.id), Some(ProcessSlot::CancelRequested)) {
+                processes.remove(&job.id);
+                true
+            } else {
+                if let Some(pid) = child.id() {
+                    processes.insert(job.id.clone(), ProcessSlot::Running(pid));
+                }
+                false
+            }
+        };
+        if cancel_requested {
+            let _ = child.kill().await;
+            return Err(AppError::Process("Cancelled".to_string()));
         }
 
         let job_id = job.id.clone();
@@ -158,7 +177,7 @@ impl YtdlpExecutor {
 
         let wait_result = child.wait().await;
         let stderr_result = stderr_task.await;
-        self.active_pids.lock().remove(&job.id);
+        self.processes.lock().remove(&job.id);
 
         let exit_status = wait_result.map_err(|e| AppError::Process(e.to_string()))?;
         let (stderr_text, saw_ffmpeg_missing) =
@@ -185,25 +204,32 @@ impl YtdlpExecutor {
     }
 
     pub fn cancel(&self, job_id: &str) {
-        let pid = self.active_pids.lock().remove(job_id);
+        let pid = {
+            let mut processes = self.processes.lock();
+            match processes.remove(job_id) {
+                Some(ProcessSlot::Running(pid)) => pid,
+                _ => {
+                    processes.insert(job_id.to_string(), ProcessSlot::CancelRequested);
+                    return;
+                }
+            }
+        };
 
-        if let Some(pid) = pid {
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(pid as libc::pid_t, libc::SIGTERM);
+        }
+
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             #[cfg(unix)]
             unsafe {
-                libc::kill(pid as libc::pid_t, libc::SIGTERM);
-            }
-
-            tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                #[cfg(unix)]
-                unsafe {
-                    // Only send SIGKILL if the process is still alive
-                    if libc::kill(pid as libc::pid_t, 0) == 0 {
-                        libc::kill(pid as libc::pid_t, libc::SIGKILL);
-                    }
+                // Only send SIGKILL if the process is still alive
+                if libc::kill(pid as libc::pid_t, 0) == 0 {
+                    libc::kill(pid as libc::pid_t, libc::SIGKILL);
                 }
-            });
-        }
+            }
+        });
     }
 }
 
@@ -268,6 +294,7 @@ mod tests {
             error: None,
             created_at: String::new(),
             completed_at: None,
+            seq: 0,
         }
     }
 
@@ -339,6 +366,58 @@ mod tests {
             );
             assert_eq!(build_args(&job, None).last(), Some(&URL.to_string()));
         }
+    }
+
+    fn sleep_executor() -> (YtdlpExecutor, Settings) {
+        let settings = Settings {
+            output_dir: std::env::temp_dir().to_string_lossy().into_owned(),
+            max_concurrent: 1,
+            max_playlist_items: 1,
+        };
+        (YtdlpExecutor::new(PathBuf::from("/bin/sleep")), settings)
+    }
+
+    #[tokio::test]
+    async fn cancel_before_registration_kills_process() {
+        let (executor, settings) = sleep_executor();
+        let job = test_job(None, false);
+        let (tx, _rx) = mpsc::channel(8);
+
+        executor.cancel(&job.id);
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            executor.run_process(vec!["30".to_string()], &job, &settings, tx),
+        )
+        .await
+        .expect("cancelled process must not run to completion");
+
+        assert!(result.is_err());
+        assert!(executor.processes.lock().is_empty());
+    }
+
+    #[tokio::test]
+    async fn cancel_after_registration_terminates_process() {
+        let (executor, settings) = sleep_executor();
+        let job = test_job(None, false);
+        let (tx, _rx) = mpsc::channel(8);
+
+        let run = executor.run_process(vec!["30".to_string()], &job, &settings, tx);
+        let cancel = async {
+            while !matches!(
+                executor.processes.lock().get(&job.id),
+                Some(ProcessSlot::Running(_))
+            ) {
+                tokio::task::yield_now().await;
+            }
+            executor.cancel(&job.id);
+        };
+        let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(run, cancel)
+        })
+        .await
+        .expect("running process must stop on cancel");
+
+        assert!(result.is_err());
     }
 
     #[test]

@@ -5,8 +5,7 @@ use url::{Host, Url};
 use crate::error::AppError;
 
 pub fn validate_url(raw: &str) -> Result<(), AppError> {
-    let url =
-        Url::parse(raw).map_err(|_| AppError::Validation(format!("Invalid URL: {}", raw)))?;
+    let url = Url::parse(raw).map_err(|_| AppError::Validation(format!("Invalid URL: {}", raw)))?;
 
     let scheme = url.scheme();
     if scheme != "http" && scheme != "https" {
@@ -47,13 +46,7 @@ pub fn validate_url(raw: &str) -> Result<(), AppError> {
 }
 
 fn is_private_ipv4(v4: &Ipv4Addr) -> bool {
-    let o = v4.octets();
-    o[0] == 127
-        || o[0] == 10
-        || (o[0] == 172 && (16..=31).contains(&o[1]))
-        || (o[0] == 192 && o[1] == 168)
-        || (o[0] == 169 && o[1] == 254)
-        || (o[0] == 0 && o[1] == 0 && o[2] == 0 && o[3] == 0)
+    v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
 }
 
 fn is_private_ipv6(v6: &Ipv6Addr) -> bool {
@@ -61,19 +54,16 @@ fn is_private_ipv6(v6: &Ipv6Addr) -> bool {
     if let Some(mapped_v4) = v6.to_ipv4_mapped() {
         return is_private_ipv4(&mapped_v4);
     }
-    // ULA (fc00::/7): covers fc00:: and fd00:: prefixes
-    let segs = v6.segments();
-    if (segs[0] & 0xfe00) == 0xfc00 {
-        return true;
-    }
-    v6.is_loopback() || v6.is_unspecified()
+    v6.is_loopback() || v6.is_unspecified() || v6.is_unique_local() || v6.is_unicast_link_local()
 }
 
 /// Allow yt-dlp format selection syntax: alphanumeric and +-./*[]!=<>~^,()@
 /// Reject shell-dangerous chars: spaces, ;|&`$'"\  and control chars.
 pub fn validate_format_id(format_id: &str) -> Result<(), AppError> {
     if format_id.is_empty() {
-        return Err(AppError::Validation("Format ID cannot be empty".to_string()));
+        return Err(AppError::Validation(
+            "Format ID cannot be empty".to_string(),
+        ));
     }
     let valid = format_id
         .chars()
@@ -89,8 +79,8 @@ pub fn validate_format_id(format_id: &str) -> Result<(), AppError> {
 
 #[cfg(test)]
 mod tests {
-    use std::net::IpAddr;
     use super::*;
+    use std::net::IpAddr;
 
     fn is_private_ip(ip: &IpAddr) -> bool {
         match ip {
@@ -98,7 +88,6 @@ mod tests {
             IpAddr::V6(v6) => is_private_ipv6(v6),
         }
     }
-
 
     #[test]
     fn valid_public_urls() {
@@ -151,6 +140,10 @@ mod tests {
         assert!(validate_url("http://[::]/video").is_err());
     }
 
+    #[test]
+    fn rejects_ipv6_link_local() {
+        assert!(validate_url("http://[fe80::1]/video").is_err());
+    }
 
     #[test]
     fn ipv4_mapped_ipv6_detected_as_private() {
@@ -166,7 +159,6 @@ mod tests {
         let addr: IpAddr = "2001:db8::1".parse().unwrap();
         assert!(!is_private_ip(&addr));
     }
-
 
     #[test]
     fn valid_format_ids() {

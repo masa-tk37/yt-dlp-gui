@@ -15,11 +15,7 @@ impl SettingsStore {
         let file_path = data_dir.join("settings.json");
 
         let default_output_dir = dirs::download_dir()
-            .unwrap_or_else(|| {
-                dirs::home_dir()
-                    .unwrap_or_default()
-                    .join("Downloads")
-            })
+            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join("Downloads"))
             .to_string_lossy()
             .to_string();
 
@@ -47,6 +43,8 @@ impl SettingsStore {
         max_concurrent: Option<u32>,
         max_playlist_items: Option<u32>,
     ) -> Result<Settings, AppError> {
+        // Staged on a copy so a rejected field or failed write leaves nothing half-applied.
+        let mut next = self.settings.clone();
         if let Some(dir) = output_dir {
             let home = dirs::home_dir().ok_or_else(|| {
                 AppError::Validation("Cannot determine home directory".to_string())
@@ -64,7 +62,7 @@ impl SettingsStore {
                     "Output directory must be within your home directory".to_string(),
                 ));
             }
-            self.settings.output_dir = normalized.to_string_lossy().into_owned();
+            next.output_dir = normalized.to_string_lossy().into_owned();
         }
         if let Some(n) = max_concurrent {
             if !(1..=10).contains(&n) {
@@ -72,7 +70,7 @@ impl SettingsStore {
                     "max_concurrent must be between 1 and 10".to_string(),
                 ));
             }
-            self.settings.max_concurrent = n;
+            next.max_concurrent = n;
         }
         if let Some(n) = max_playlist_items {
             if !(1..=1000).contains(&n) {
@@ -80,9 +78,10 @@ impl SettingsStore {
                     "max_playlist_items must be between 1 and 1000".to_string(),
                 ));
             }
-            self.settings.max_playlist_items = n;
+            next.max_playlist_items = n;
         }
-        self.save()?;
+        self.save(&next)?;
+        self.settings = next;
         Ok(self.get())
     }
 
@@ -103,8 +102,8 @@ impl SettingsStore {
         }
     }
 
-    fn save(&self) -> Result<(), AppError> {
-        let text = serde_json::to_string_pretty(&self.settings)?;
+    fn save(&self, settings: &Settings) -> Result<(), AppError> {
+        let text = serde_json::to_string_pretty(settings)?;
         fs::write(&self.file_path, text)?;
         Ok(())
     }

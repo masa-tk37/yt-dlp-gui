@@ -71,3 +71,14 @@ export interface Settings {
   maxConcurrent: number
   maxPlaylistItems: number
 }
+
+export interface ToolInfo {
+  version: string
+  path: string
+}
+
+export interface DependencyStatus {
+  backendReady: boolean
+  ytdlp: ToolInfo | null
+  ffmpeg: ToolInfo | null
+}

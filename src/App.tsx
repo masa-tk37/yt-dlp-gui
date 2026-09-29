@@ -12,7 +12,7 @@ import { FoxLogo } from "./components/FoxLogo"
 const MAX_CONTENT_WIDTH = 760
 
 export function App() {
-  const { ready, error, dependencies } = useTauriBackend()
+  const { error, dependencies } = useTauriBackend()
   const {
     jobs,
     addDownload,
@@ -24,11 +24,11 @@ export function App() {
   const [view, setView] = useState<"main" | "settings">("main")
   const isSettings = view === "settings"
 
-  if (error) {
-    return <DependencyErrorScreen dependencies={dependencies} />
+  if (error || (dependencies && !dependencies.backendReady)) {
+    return <DependencyErrorScreen dependencies={dependencies} error={error} />
   }
 
-  if (!ready) {
+  if (!dependencies) {
     return (
       <div
         style={{

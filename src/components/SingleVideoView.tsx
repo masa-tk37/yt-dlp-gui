@@ -1,6 +1,6 @@
 import { PiCaretDown } from "react-icons/pi"
 import type { Format } from "../types"
-import { formInput, fieldLabel } from "../styles/form-styles"
+import { formInput, fieldLabel, primaryButton } from "../styles/form-styles"
 import {
   FORMAT_PRESET_MP4,
   FORMAT_PRESET_AUDIO,
@@ -77,18 +77,9 @@ export function SingleVideoView({
         onClick={onDownload}
         className="btn-primary"
         style={{
-          background: "var(--primary)",
-          border: "none",
-          borderRadius: "var(--radius-pill)",
+          ...primaryButton(),
           padding: "13px 28px",
-          color: "#fff",
-          fontFamily: "inherit",
-          fontSize: 14,
-          fontWeight: 800,
-          cursor: "pointer",
-          transition: "all 0.18s cubic-bezier(0.34, 1.3, 0.64, 1)",
           alignSelf: "flex-start",
-          boxShadow: "0 4px 14px var(--primary-glow)",
         }}
       >
         Download

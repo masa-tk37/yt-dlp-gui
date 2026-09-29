@@ -1,7 +1,12 @@
-import { useState, type KeyboardEvent } from "react"
+import { memo, useState, type KeyboardEvent } from "react"
 import { PiMusicNote } from "react-icons/pi"
 import { useFormats } from "../hooks/useFormats"
-import { formInput, fieldLabel, sectionCard } from "../styles/form-styles"
+import {
+  formInput,
+  fieldLabel,
+  primaryButton,
+  sectionCard,
+} from "../styles/form-styles"
 import { PlaylistView } from "./PlaylistView"
 import { SingleVideoView } from "./SingleVideoView"
 import {
@@ -16,16 +21,17 @@ interface DownloadFormProps {
     formatId?: string,
     audioOnly?: boolean,
     title?: string,
-  ) => void
+  ) => Promise<void>
   onBulkDownload: (
     urls: string[],
     formatId?: string,
     audioOnly?: boolean,
     titles?: string[],
-  ) => void
+  ) => Promise<void>
 }
 
-export function DownloadForm({
+// Memoized: the parent re-renders on every download-progress event.
+export const DownloadForm = memo(function DownloadForm({
   onDownload,
   onBulkDownload,
 }: DownloadFormProps) {
@@ -34,9 +40,11 @@ export function DownloadForm({
   const [audioOnly, setAudioOnly] = useState(false)
   const { videoInfo, fetchFormats, reset, loading, error } = useFormats()
   const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const startFetch = (rawUrl: string) => {
     reset()
+    setSubmitError(null)
     setSelectedEntries(new Set())
     fetchFormats(rawUrl)
   }
@@ -58,12 +66,21 @@ export function DownloadForm({
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!url.trim()) return
+    setSubmitError(null)
+    try {
+      await submitDownload()
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const submitDownload = async () => {
     if (videoInfo?.isPlaylist && videoInfo.entries) {
       const entries = videoInfo.entries.filter((_, i) => selectedEntries.has(i))
       if (entries.length > 0) {
-        onBulkDownload(
+        await onBulkDownload(
           entries.map((e) => e.url),
           audioOnly ? undefined : MP4_FORMAT_STRING,
           audioOnly || undefined,
@@ -74,7 +91,7 @@ export function DownloadForm({
       const isAudio = formatId === FORMAT_PRESET_AUDIO
       const resolvedFormatId =
         formatId === FORMAT_PRESET_MP4 ? MP4_FORMAT_STRING : formatId
-      onDownload(
+      await onDownload(
         url.trim(),
         isAudio ? undefined : resolvedFormatId || undefined,
         isAudio || undefined,
@@ -156,17 +173,10 @@ export function DownloadForm({
             disabled={btnDisabled}
             className="btn-primary"
             style={{
-              background: btnDisabled ? "var(--border)" : "var(--primary)",
-              border: "none",
-              borderRadius: "var(--radius-pill)",
+              ...primaryButton(btnDisabled),
               padding: "11px 20px",
-              color: btnDisabled ? "var(--text-muted)" : "#fff",
-              fontFamily: "inherit",
               fontSize: 13,
-              fontWeight: 800,
-              cursor: btnDisabled ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
-              transition: "all 0.18s cubic-bezier(0.34, 1.3, 0.64, 1)",
               boxShadow: btnDisabled
                 ? "none"
                 : "0 3px 10px var(--primary-glow)",
@@ -177,7 +187,7 @@ export function DownloadForm({
         </div>
       </div>
 
-      {error && (
+      {(error || submitError) && (
         <div
           style={{
             background: "var(--red-dim)",
@@ -190,7 +200,7 @@ export function DownloadForm({
             marginBottom: 14,
           }}
         >
-          Hmm, something went wrong — {error}
+          Hmm, something went wrong — {error ?? submitError}
         </div>
       )}
 
@@ -266,4 +276,4 @@ export function DownloadForm({
       )}
     </section>
   )
-}
+})

@@ -13,12 +13,11 @@ mod ytdlp_parser;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 use commands::{
-    add_bulk_downloads, add_download, build_dependency_status, cancel_all_downloads,
-    cancel_download, clear_completed, get_all_jobs, get_dependency_status, get_settings,
-    list_formats, update_settings,
+    add_bulk_downloads, add_download, cancel_all_downloads, cancel_download, clear_completed,
+    get_all_jobs, get_dependency_status, get_settings, list_formats, update_settings,
 };
 use download_manager::DownloadManager;
 use settings::SettingsStore;
@@ -26,12 +25,6 @@ use ytdlp_executor::YtdlpExecutor;
 
 pub(crate) const YTDLP_NOT_FOUND_MSG: &str =
     "yt-dlp not found in PATH. Install with: brew install yt-dlp";
-
-#[derive(Debug, serde::Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct BackendCrashedPayload {
-    error: String,
-}
 
 pub struct AppState {
     pub download_manager: Option<Arc<Mutex<DownloadManager>>>,
@@ -64,29 +57,10 @@ pub fn run() {
                     .map_err(|e| format!("Failed to init settings: {}", e))?,
             ));
 
-            let handle2 = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(dep_status) =
-                    tokio::task::spawn_blocking(build_dependency_status).await
-                {
-                    let _ = handle2.emit("dependency-status", &dep_status);
-                }
-            });
-
-            let download_manager = if let Some(ytdlp_path) = ytdlp::find_ytdlp() {
+            let download_manager = ytdlp::find_ytdlp().map(|ytdlp_path| {
                 let executor = Arc::new(YtdlpExecutor::new(ytdlp_path));
-                let dm = Arc::new(Mutex::new(DownloadManager::new(handle.clone(), executor)));
-                let _ = handle.emit("backend-ready", ());
-                Some(dm)
-            } else {
-                let _ = handle.emit(
-                    "backend-crashed",
-                    BackendCrashedPayload {
-                        error: YTDLP_NOT_FOUND_MSG.into(),
-                    },
-                );
-                None
-            };
+                Arc::new(Mutex::new(DownloadManager::new(handle, executor)))
+            });
 
             app.manage(AppState {
                 download_manager,

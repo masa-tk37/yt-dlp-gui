@@ -1,7 +1,12 @@
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PiGearSix } from "react-icons/pi"
 import { useSettings } from "../hooks/useSettings"
-import { formInput, fieldLabel, sectionCard } from "../styles/form-styles"
+import {
+  fieldLabel,
+  formInput,
+  sectionCard,
+  sectionTitle,
+} from "../styles/form-styles"
 import type { Settings } from "../types"
 
 export function SettingsPanel() {
@@ -39,8 +44,13 @@ export function SettingsPanel() {
     )
   }
 
-  const handleSave = () => {
-    updateSettings(draft)
+  const handleSave = async () => {
+    try {
+      await updateSettings(draft)
+    } catch (e) {
+      console.error("Failed to save settings:", e)
+      return
+    }
     setSaved(true)
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
     savedTimerRef.current = setTimeout(() => setSaved(false), 2000)
@@ -57,16 +67,7 @@ export function SettingsPanel() {
         }}
       >
         <PiGearSix size={18} />
-        <span
-          style={{
-            fontFamily: '"Fredoka", sans-serif',
-            fontSize: 16,
-            color: "var(--text-sec)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          Settings
-        </span>
+        <span style={sectionTitle}>Settings</span>
       </div>
 
       <div

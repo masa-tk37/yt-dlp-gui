@@ -12,8 +12,7 @@ struct FailureSignature {
 const SIGNATURES: &[FailureSignature] = &[
     FailureSignature {
         marker: "DRM protected",
-        explanation:
-            "This video is protected by DRM. yt-dlp does not decrypt DRM, so it cannot be downloaded.",
+        explanation: "This video is protected by DRM. yt-dlp does not decrypt DRM, so it cannot be downloaded.",
     },
     FailureSignature {
         marker: "Requested format is not available",
@@ -71,8 +70,7 @@ mod tests {
     use super::*;
 
     const DRM: &str = "ERROR: [tver] ep1: This video is DRM protected";
-    const NO_FORMAT: &str =
-        "ERROR: [tver] ep1: Requested format is not available. Use --list-formats for a list of available formats";
+    const NO_FORMAT: &str = "ERROR: [tver] ep1: Requested format is not available. Use --list-formats for a list of available formats";
 
     #[test]
     fn explain_drm() {
@@ -92,8 +90,7 @@ mod tests {
 
     #[test]
     fn explain_geo_restriction() {
-        let stderr =
-            "ERROR: [tver] ep1: This video is not available from your location due to geo restriction";
+        let stderr = "ERROR: [tver] ep1: This video is not available from your location due to geo restriction";
         assert!(
             explain(stderr)
                 .unwrap()

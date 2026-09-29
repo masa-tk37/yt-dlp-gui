@@ -1,6 +1,6 @@
 import { PiWrench } from "react-icons/pi"
-import type { DependencyStatus, ToolInfo } from "../hooks/useTauri"
-import { sectionCard } from "../styles/form-styles"
+import type { DependencyStatus, ToolInfo } from "../types"
+import { sectionCard, sectionTitle } from "../styles/form-styles"
 
 interface ToolColProps {
   label: string
@@ -65,16 +65,7 @@ export function ToolsPanel({ dependencies }: Props) {
         }}
       >
         <PiWrench size={18} />
-        <span
-          style={{
-            fontFamily: '"Fredoka", sans-serif',
-            fontSize: 16,
-            color: "var(--text-sec)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          Tools
-        </span>
+        <span style={sectionTitle}>Tools</span>
       </div>
       <div style={{ display: "flex", gap: 16 }}>
         <ToolCol label="yt-dlp" tool={dependencies.ytdlp} />

@@ -9,13 +9,14 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::job_runner::run_job;
 use crate::settings::SettingsStore;
-use crate::types::{DownloadProgress, Job, JobStatus, Settings};
+use crate::types::{Job, JobStatus, PROGRESS_EVENT};
 use crate::ytdlp_executor::YtdlpExecutor;
 
 const MAX_JOBS: usize = 100;
 
 pub struct DownloadManager {
     pub(crate) jobs: HashMap<String, Job>,
+    next_seq: u64,
     pub(crate) executor: Arc<YtdlpExecutor>,
     pub(crate) app: AppHandle,
 }
@@ -24,9 +25,20 @@ impl DownloadManager {
     pub fn new(app: AppHandle, executor: Arc<YtdlpExecutor>) -> Self {
         Self {
             jobs: HashMap::new(),
+            next_seq: 0,
             executor,
             app,
         }
+    }
+
+    pub fn ensure_capacity(&self, additional: usize) -> Result<(), AppError> {
+        if self.jobs.len() + additional > MAX_JOBS {
+            return Err(AppError::QueueFull(format!(
+                "Job queue is full (max {})",
+                MAX_JOBS
+            )));
+        }
+        Ok(())
     }
 
     pub fn add_job(
@@ -36,12 +48,7 @@ impl DownloadManager {
         audio_only: Option<bool>,
         title: Option<String>,
     ) -> Result<Job, AppError> {
-        if self.jobs.len() >= MAX_JOBS {
-            return Err(AppError::QueueFull(format!(
-                "Job queue is full (max {})",
-                MAX_JOBS
-            )));
-        }
+        self.ensure_capacity(1)?;
 
         let id = Uuid::new_v4().to_string();
         let job = Job {
@@ -58,7 +65,9 @@ impl DownloadManager {
             error: None,
             created_at: Utc::now().to_rfc3339(),
             completed_at: None,
+            seq: self.next_seq,
         };
+        self.next_seq += 1;
 
         self.jobs.insert(id, job.clone());
         Ok(job)
@@ -66,7 +75,7 @@ impl DownloadManager {
 
     pub fn get_all_jobs(&self) -> Vec<Job> {
         let mut jobs: Vec<Job> = self.jobs.values().cloned().collect();
-        jobs.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        jobs.sort_by_key(|j| j.seq);
         jobs
     }
 
@@ -76,21 +85,16 @@ impl DownloadManager {
             .get_mut(id)
             .ok_or_else(|| AppError::NotFound(format!("Job {} not found", id)))?;
 
+        // A cancel racing with completion must not relabel a finished job.
+        if job.status.is_terminal() {
+            return Ok(());
+        }
         if job.status == JobStatus::Downloading {
             self.executor.cancel(id);
         }
 
         job.status = JobStatus::Cancelled;
-
-        let progress = DownloadProgress {
-            job_id: id.to_string(),
-            status: JobStatus::Cancelled,
-            progress: job.progress.unwrap_or(0.0),
-            filename: job.filename.clone().unwrap_or_default(),
-            ..Default::default()
-        };
-
-        let _ = self.app.emit("download-progress", &progress);
+        let _ = self.app.emit(PROGRESS_EVENT, job.progress_event());
         Ok(())
     }
 
@@ -109,71 +113,45 @@ impl DownloadManager {
         count
     }
 
-    pub fn executor(&self) -> &Arc<YtdlpExecutor> {
-        &self.executor
-    }
-
     pub fn clear_completed(&mut self) -> u32 {
-        let to_remove: Vec<String> = self
-            .jobs
-            .values()
-            .filter(|j| j.status.is_terminal())
-            .map(|j| j.id.clone())
-            .collect();
-
-        let count = to_remove.len() as u32;
-        for id in to_remove {
-            self.jobs.remove(&id);
-        }
-        count
+        let before = self.jobs.len();
+        self.jobs.retain(|_, j| !j.status.is_terminal());
+        (before - self.jobs.len()) as u32
     }
 
     /// Call after add_job or job completion to fill available concurrency slots.
     pub fn try_start_pending(
         manager: Arc<Mutex<DownloadManager>>,
-        settings: Settings,
         settings_store: Arc<Mutex<SettingsStore>>,
     ) {
-        let (active, pending_ids) = {
-            let m = manager.lock();
+        let max_concurrent = settings_store.lock().get().max_concurrent as usize;
+        // Counting and claiming slots under one guard; concurrent callers would otherwise
+        // both see the same free slots and exceed max_concurrent.
+        let to_start: Vec<Job> = {
+            let mut m = manager.lock();
             let active = m
                 .jobs
                 .values()
                 .filter(|j| j.status == JobStatus::Downloading)
                 .count();
-            let mut pending: Vec<(String, String)> = m
+            let mut pending: Vec<&mut Job> = m
                 .jobs
-                .values()
+                .values_mut()
                 .filter(|j| j.status == JobStatus::Pending)
-                .map(|j| (j.id.clone(), j.created_at.clone()))
                 .collect();
-            // maintain FIFO order
-            pending.sort_by(|a, b| a.1.cmp(&b.1));
-            let pending: Vec<String> = pending.into_iter().map(|(id, _)| id).collect();
-            (active, pending)
+            pending.sort_by_key(|j| j.seq);
+            pending
+                .into_iter()
+                .take(max_concurrent.saturating_sub(active))
+                .map(|j| {
+                    j.status = JobStatus::Downloading;
+                    j.clone()
+                })
+                .collect()
         };
 
-        let available = (settings.max_concurrent as usize).saturating_sub(active);
-
-        for id in pending_ids.into_iter().take(available) {
-            let job = {
-                let mut m = manager.lock();
-                match m.jobs.get_mut(&id) {
-                    Some(j) if j.status == JobStatus::Pending => {
-                        j.status = JobStatus::Downloading;
-                        j.clone()
-                    }
-                    _ => continue,
-                }
-            };
-
-            let manager_clone = manager.clone();
-            let settings_clone = settings.clone();
-            let settings_store_clone = settings_store.clone();
-
-            tokio::spawn(async move {
-                run_job(job, manager_clone, settings_clone, settings_store_clone).await;
-            });
+        for job in to_start {
+            tokio::spawn(run_job(job, manager.clone(), settings_store.clone()));
         }
     }
 }

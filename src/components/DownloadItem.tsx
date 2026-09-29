@@ -1,5 +1,6 @@
+import { memo } from "react"
 import { PiX } from "react-icons/pi"
-import type { Job } from "../types"
+import type { Job, JobStatus } from "../types"
 
 interface DownloadItemProps {
   job: Job
@@ -7,14 +8,13 @@ interface DownloadItemProps {
 }
 
 const STATUS: Record<
-  string,
+  JobStatus,
   {
     color: string
     bg: string
     border: string
     textColor: string
     label: string
-    icon: string
   }
 > = {
   pending: {
@@ -23,7 +23,6 @@ const STATUS: Record<
     border: "var(--caramel-border)",
     textColor: "var(--caramel-text)",
     label: "Waiting",
-    icon: "○",
   },
   downloading: {
     color: "var(--blue)",
@@ -31,7 +30,6 @@ const STATUS: Record<
     border: "var(--blue-border)",
     textColor: "var(--blue-text)",
     label: "Downloading",
-    icon: "↓",
   },
   completed: {
     color: "var(--green)",
@@ -39,7 +37,6 @@ const STATUS: Record<
     border: "var(--green-border)",
     textColor: "var(--green-text)",
     label: "Done",
-    icon: "✓",
   },
   failed: {
     color: "var(--red)",
@@ -47,7 +44,6 @@ const STATUS: Record<
     border: "var(--red-border)",
     textColor: "var(--red-text)",
     label: "Failed",
-    icon: "!",
   },
   cancelled: {
     color: "var(--grey)",
@@ -55,16 +51,19 @@ const STATUS: Record<
     border: "var(--grey-border)",
     textColor: "var(--grey-text)",
     label: "Stopped",
-    icon: "–",
   },
 }
 
-export function DownloadItem({ job, onCancel }: DownloadItemProps) {
-  const canCancel = job.status === "pending" || job.status === "downloading"
+// Memoized: the parent re-renders on every download-progress event.
+export const DownloadItem = memo(function DownloadItem({
+  job,
+  onCancel,
+}: DownloadItemProps) {
   const displayName = job.title || job.url
-  const cfg = STATUS[job.status] ?? STATUS.pending
+  const cfg = STATUS[job.status]
   const isDownloading = job.status === "downloading"
   const isPending = job.status === "pending"
+  const canCancel = isDownloading || isPending
 
   return (
     <div
@@ -233,4 +232,4 @@ export function DownloadItem({ job, onCancel }: DownloadItemProps) {
       )}
     </div>
   )
-}
+})

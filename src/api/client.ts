@@ -1,9 +1,5 @@
-import { invoke as tauriInvoke } from "@tauri-apps/api/core"
-import type { Job, VideoInfo, Settings } from "../types"
-
-function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  return tauriInvoke<T>(cmd, args)
-}
+import { invoke } from "@tauri-apps/api/core"
+import type { DependencyStatus, Job, Settings, VideoInfo } from "../types"
 
 export const api = {
   downloads: {
@@ -38,11 +34,11 @@ export const api = {
 
   settings: {
     get: (): Promise<Settings> => invoke("get_settings"),
-    update: (
-      outputDir?: string,
-      maxConcurrent?: number,
-      maxPlaylistItems?: number,
-    ): Promise<Settings> =>
-      invoke("update_settings", { outputDir, maxConcurrent, maxPlaylistItems }),
+    update: (partial: Partial<Settings>): Promise<Settings> =>
+      invoke("update_settings", partial),
+  },
+
+  dependencies: {
+    status: (): Promise<DependencyStatus> => invoke("get_dependency_status"),
   },
 }

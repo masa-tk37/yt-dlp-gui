@@ -1,30 +1,15 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use serde::Serialize;
 use tauri::State;
 
+use crate::AppState;
 use crate::download_manager::DownloadManager;
-use crate::types::{Job, Settings, VideoInfo};
+use crate::types::{DependencyStatus, Job, Settings, ToolInfo, VideoInfo};
 use crate::validation::{validate_format_id, validate_url};
 use crate::ytdlp;
-use crate::AppState;
 
 const MAX_BULK_URLS: usize = 1000;
-
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ToolInfo {
-    pub version: String,
-    pub path: String,
-}
-
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct DependencyStatus {
-    pub ytdlp: Option<ToolInfo>,
-    pub ffmpeg: Option<ToolInfo>,
-}
 
 pub(crate) fn get_dm(state: &AppState) -> Result<Arc<Mutex<DownloadManager>>, String> {
     state
@@ -34,10 +19,11 @@ pub(crate) fn get_dm(state: &AppState) -> Result<Arc<Mutex<DownloadManager>>, St
         .ok_or_else(|| crate::YTDLP_NOT_FOUND_MSG.to_string())
 }
 
-pub(crate) fn build_dependency_status() -> DependencyStatus {
+fn build_dependency_status(backend_ready: bool) -> DependencyStatus {
     let ytdlp_path = ytdlp::find_ytdlp();
     let ffmpeg_path = ytdlp::find_ffmpeg();
     DependencyStatus {
+        backend_ready,
         ytdlp: ytdlp_path.as_ref().map(|p| ToolInfo {
             version: ytdlp::get_version(p).unwrap_or_else(|| "unknown".into()),
             path: p.to_string_lossy().into(),
@@ -65,12 +51,10 @@ pub async fn add_download(
     let dm = get_dm(&state)?;
     let job = {
         let mut dm = dm.lock();
-        dm.add_job(url, format_id, audio_only, title)
-            .map_err(|e| e.to_string())?
+        dm.add_job(url, format_id, audio_only, title)?
     };
 
-    let settings = state.settings.lock().get();
-    DownloadManager::try_start_pending(dm, settings, state.settings.clone());
+    DownloadManager::try_start_pending(dm, state.settings.clone());
 
     Ok(job)
 }
@@ -97,17 +81,17 @@ pub async fn add_bulk_downloads(
     let mut jobs = Vec::new();
     {
         let mut dm_guard = dm.lock();
+        // All-or-nothing: jobs inserted before a mid-loop failure would never be
+        // returned to the frontend nor started.
+        dm_guard.ensure_capacity(urls.len())?;
         for (i, url) in urls.into_iter().enumerate() {
             let title = titles.as_ref().and_then(|t| t.get(i)).cloned();
-            let job = dm_guard
-                .add_job(url, format_id.clone(), audio_only, title)
-                .map_err(|e| e.to_string())?;
+            let job = dm_guard.add_job(url, format_id.clone(), audio_only, title)?;
             jobs.push(job);
         }
     }
 
-    let settings = state.settings.lock().get();
-    DownloadManager::try_start_pending(dm, settings, state.settings.clone());
+    DownloadManager::try_start_pending(dm, state.settings.clone());
 
     Ok(jobs)
 }
@@ -119,10 +103,7 @@ pub async fn get_all_jobs(state: State<'_, AppState>) -> Result<Vec<Job>, String
 
 #[tauri::command]
 pub async fn cancel_download(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    get_dm(&state)?
-        .lock()
-        .cancel_job(&id)
-        .map_err(|e| e.to_string())
+    get_dm(&state)?.lock().cancel_job(&id).map_err(String::from)
 }
 
 #[tauri::command]
@@ -136,18 +117,15 @@ pub async fn clear_completed(state: State<'_, AppState>) -> Result<u32, String> 
 }
 
 #[tauri::command]
-pub async fn list_formats(
-    url: String,
-    state: State<'_, AppState>,
-) -> Result<VideoInfo, String> {
+pub async fn list_formats(url: String, state: State<'_, AppState>) -> Result<VideoInfo, String> {
     validate_url(&url)?;
     let max_playlist_items = state.settings.lock().get().max_playlist_items;
-    let executor = get_dm(&state)?.lock().executor().clone();
+    let executor = get_dm(&state)?.lock().executor.clone();
 
     executor
         .list_formats(&url, max_playlist_items)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(String::from)
 }
 
 #[tauri::command]
@@ -166,12 +144,13 @@ pub async fn update_settings(
         .settings
         .lock()
         .update(output_dir, max_concurrent, max_playlist_items)
-        .map_err(|e| e.to_string())
+        .map_err(String::from)
 }
 
 #[tauri::command]
-pub async fn get_dependency_status() -> Result<DependencyStatus, String> {
-    tokio::task::spawn_blocking(build_dependency_status)
+pub async fn get_dependency_status(state: State<'_, AppState>) -> Result<DependencyStatus, String> {
+    let backend_ready = state.download_manager.is_some();
+    tokio::task::spawn_blocking(move || build_dependency_status(backend_ready))
         .await
         .map_err(|e| e.to_string())
 }

@@ -20,11 +20,7 @@ export function useSettings() {
   }, [])
 
   const updateSettings = useCallback(async (partial: Partial<Settings>) => {
-    const updated = await api.settings.update(
-      partial.outputDir,
-      partial.maxConcurrent,
-      partial.maxPlaylistItems,
-    )
+    const updated = await api.settings.update(partial)
     setSettings(updated)
   }, [])
 

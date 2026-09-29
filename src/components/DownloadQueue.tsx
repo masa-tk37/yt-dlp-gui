@@ -4,7 +4,19 @@ import type { Job } from "../types"
 import { TERMINAL_STATUSES } from "../types"
 import { DownloadItem } from "./DownloadItem"
 import { ConfirmModal } from "./ConfirmModal"
-import { sectionCard } from "../styles/form-styles"
+import { sectionCard, sectionTitle } from "../styles/form-styles"
+
+const pillGhostButton: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--text-muted)",
+  background: "transparent",
+  border: "1.5px solid var(--border)",
+  borderRadius: "var(--radius-pill)",
+  padding: "3px 10px",
+  cursor: "pointer",
+  letterSpacing: "0.02em",
+}
 
 interface DownloadQueueProps {
   jobs: Job[]
@@ -52,16 +64,7 @@ export function DownloadQueue({
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <PiTrayArrowDown size={18} />
-          <span
-            style={{
-              fontFamily: '"Fredoka", sans-serif',
-              fontSize: 16,
-              color: "var(--text-sec)",
-              letterSpacing: "0.02em",
-            }}
-          >
-            Downloads
-          </span>
+          <span style={sectionTitle}>Downloads</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {activeCount > 0 && (
@@ -84,17 +87,7 @@ export function DownloadQueue({
               type="button"
               onClick={() => setShowConfirm(true)}
               className="btn-cancel"
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text-muted)",
-                background: "transparent",
-                border: "1.5px solid var(--border)",
-                borderRadius: "var(--radius-pill)",
-                padding: "3px 10px",
-                cursor: "pointer",
-                letterSpacing: "0.02em",
-              }}
+              style={pillGhostButton}
             >
               Cancel All
             </button>
@@ -103,17 +96,7 @@ export function DownloadQueue({
             <button
               type="button"
               onClick={onClearCompleted}
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text-muted)",
-                background: "transparent",
-                border: "1.5px solid var(--border)",
-                borderRadius: "var(--radius-pill)",
-                padding: "3px 10px",
-                cursor: "pointer",
-                letterSpacing: "0.02em",
-              }}
+              style={pillGhostButton}
             >
               Clear
             </button>

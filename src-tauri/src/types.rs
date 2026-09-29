@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum JobStatus {
+    #[default]
     Pending,
     Downloading,
     Completed,
@@ -35,9 +36,28 @@ pub struct Job {
     pub error: Option<String>,
     pub created_at: String,
     pub completed_at: Option<String>,
+    /// Insertion order; created_at can tie within one bulk add.
+    #[serde(skip)]
+    pub seq: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Job {
+    /// Snapshot of this job's state as a status-change event.
+    pub fn progress_event(&self) -> DownloadProgress {
+        DownloadProgress {
+            job_id: self.id.clone(),
+            status: self.status.clone(),
+            progress: self.progress.unwrap_or(0.0),
+            filename: self.filename.clone().unwrap_or_default(),
+            error: self.error.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+pub const PROGRESS_EVENT: &str = "download-progress";
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub job_id: String,
@@ -51,24 +71,6 @@ pub struct DownloadProgress {
     pub downloaded_bytes: Option<u64>,
     pub phase: Option<String>,
     pub error: Option<String>,
-}
-
-impl Default for DownloadProgress {
-    fn default() -> Self {
-        Self {
-            job_id: String::new(),
-            status: JobStatus::Pending,
-            progress: 0.0,
-            speed: String::new(),
-            eta: String::new(),
-            filename: String::new(),
-            total_bytes: None,
-            total_bytes_estimate: None,
-            downloaded_bytes: None,
-            phase: None,
-            error: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,4 +108,20 @@ pub struct Settings {
     pub output_dir: String,
     pub max_concurrent: u32,
     pub max_playlist_items: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolInfo {
+    pub version: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DependencyStatus {
+    /// Whether setup() built the download manager; the tool probe below is display only.
+    pub backend_ready: bool,
+    pub ytdlp: Option<ToolInfo>,
+    pub ffmpeg: Option<ToolInfo>,
 }

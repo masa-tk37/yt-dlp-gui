@@ -9,34 +9,27 @@ pub fn find_ffmpeg() -> Option<PathBuf> {
 }
 
 pub fn get_version(bin_path: &Path) -> Option<String> {
-    let output = std::process::Command::new(bin_path)
-        .arg("--version")
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    run_for_stdout(bin_path, "--version").map(|out| out.trim().to_string())
 }
 
 /// ffmpeg uses `-version` (not `--version`) and outputs "ffmpeg version X.Y ...".
 pub fn get_ffmpeg_version(bin_path: &Path) -> Option<String> {
-    let output = std::process::Command::new(bin_path)
-        .arg("-version")
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    String::from_utf8_lossy(&output.stdout)
+    run_for_stdout(bin_path, "-version")?
         .lines()
         .next()
         .and_then(|l| l.split_whitespace().nth(2))
         .map(String::from)
+}
+
+fn run_for_stdout(bin_path: &Path, flag: &str) -> Option<String> {
+    let output = std::process::Command::new(bin_path)
+        .arg(flag)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 fn which(name: &str) -> Option<PathBuf> {

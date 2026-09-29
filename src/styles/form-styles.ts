@@ -43,3 +43,25 @@ export const sectionCard: React.CSSProperties = {
   padding: "20px 22px",
   boxShadow: "var(--shadow-card)",
 }
+
+export const sectionTitle: React.CSSProperties = {
+  fontFamily: '"Fredoka", sans-serif',
+  fontSize: 16,
+  color: "var(--text-sec)",
+  letterSpacing: "0.02em",
+}
+
+export function primaryButton(disabled = false): React.CSSProperties {
+  return {
+    background: disabled ? "var(--border)" : "var(--primary)",
+    border: "none",
+    borderRadius: "var(--radius-pill)",
+    color: disabled ? "var(--text-muted)" : "#fff",
+    fontFamily: "inherit",
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: disabled ? "not-allowed" : "pointer",
+    transition: "all 0.18s cubic-bezier(0.34, 1.3, 0.64, 1)",
+    boxShadow: disabled ? "none" : "0 4px 14px var(--primary-glow)",
+  }
+}

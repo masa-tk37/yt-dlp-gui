@@ -1,6 +1,6 @@
 import { SettingsPanel } from "./SettingsPanel"
 import { ToolsPanel } from "./ToolsPanel"
-import type { DependencyStatus } from "../hooks/useTauri"
+import type { DependencyStatus } from "../types"
 
 interface Props {
   dependencies: DependencyStatus | null

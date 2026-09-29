@@ -5,11 +5,7 @@ use crate::types::{DownloadProgress, Format, JobStatus, PlaylistEntry, VideoInfo
 pub const PROGRESS_PREFIX: &str = "PROGRESS:";
 
 pub fn parse_progress(line: &str, job_id: &str) -> Option<DownloadProgress> {
-    if !line.starts_with(PROGRESS_PREFIX) {
-        return None;
-    }
-
-    let json_str = &line[PROGRESS_PREFIX.len()..];
+    let json_str = line.strip_prefix(PROGRESS_PREFIX)?;
     let raw: Value = serde_json::from_str(json_str).ok()?;
 
     let percent = raw["_percent_str"]
@@ -131,7 +127,6 @@ pub(crate) fn parse_merged_filename(line: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn parse_phase_resolving() {
         assert_eq!(
@@ -167,7 +162,6 @@ mod tests {
         assert_eq!(parse_phase(""), None);
     }
 
-
     #[test]
     fn parse_merged_filename_extracts_path() {
         assert_eq!(
@@ -197,7 +191,6 @@ mod tests {
             None
         );
     }
-
 
     #[test]
     fn parse_progress_valid() {
@@ -236,7 +229,6 @@ mod tests {
         let result = parse_progress(line, "job-1").unwrap();
         assert_eq!(result.progress, 0.0);
     }
-
 
     #[test]
     fn parse_single_video_basic() {
@@ -283,7 +275,6 @@ mod tests {
         let info = parse_single_video(&data);
         assert_eq!(info.formats[0].filesize, Some(12345));
     }
-
 
     #[test]
     fn parse_playlist_basic() {

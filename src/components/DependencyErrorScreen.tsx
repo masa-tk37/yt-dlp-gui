@@ -1,5 +1,5 @@
 import { PiWarningCircle, PiCheckCircle, PiXCircle } from "react-icons/pi"
-import type { DependencyStatus, ToolInfo } from "../hooks/useTauri"
+import type { DependencyStatus, ToolInfo } from "../types"
 import {
   sectionCard,
   toolRowStyle,
@@ -50,9 +50,13 @@ function DepRow({ label, tool }: { label: string; tool: ToolInfo | null }) {
 
 interface Props {
   dependencies: DependencyStatus | null
+  error: string | null
 }
 
-export function DependencyErrorScreen({ dependencies }: Props) {
+export function DependencyErrorScreen({ dependencies, error }: Props) {
+  const ytdlpMissing = dependencies !== null && !dependencies.ytdlp
+  const ffmpegMissing = dependencies !== null && !dependencies.ffmpeg
+
   return (
     <div
       style={{
@@ -76,8 +80,23 @@ export function DependencyErrorScreen({ dependencies }: Props) {
           gap: 8,
         }}
       >
-        <PiWarningCircle size={24} /> Dependencies Missing
+        <PiWarningCircle size={24} />
+        {dependencies ? "Dependencies Missing" : "Startup Failed"}
       </span>
+
+      {error && (
+        <span
+          style={{
+            fontSize: 13,
+            color: "var(--red-text)",
+            fontWeight: 700,
+            textAlign: "center",
+            maxWidth: 480,
+          }}
+        >
+          {error}
+        </span>
+      )}
 
       {dependencies && (
         <div
@@ -102,17 +121,21 @@ export function DependencyErrorScreen({ dependencies }: Props) {
           textAlign: "center",
         }}
       >
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Install missing tools:
-        </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {!dependencies?.ytdlp && (
-            <code style={codeStyle}>brew install yt-dlp</code>
-          )}
-          {!dependencies?.ffmpeg && (
-            <code style={codeStyle}>brew install ffmpeg</code>
-          )}
-        </div>
+        {(ytdlpMissing || ffmpegMissing) && (
+          <>
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Install missing tools:
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {ytdlpMissing && (
+                <code style={codeStyle}>brew install yt-dlp</code>
+              )}
+              {ffmpegMissing && (
+                <code style={codeStyle}>brew install ffmpeg</code>
+              )}
+            </div>
+          </>
+        )}
         <span
           style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}
         >

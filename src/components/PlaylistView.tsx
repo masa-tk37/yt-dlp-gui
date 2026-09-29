@@ -1,5 +1,12 @@
 import type { VideoInfo } from "../types"
-import { fieldLabel } from "../styles/form-styles"
+import { fieldLabel, primaryButton } from "../styles/form-styles"
+
+const checkboxStyle: React.CSSProperties = {
+  accentColor: "var(--primary)",
+  width: 14,
+  height: 14,
+  flexShrink: 0,
+}
 
 interface PlaylistViewProps {
   entries: NonNullable<VideoInfo["entries"]>
@@ -84,12 +91,7 @@ export function PlaylistView({
               type="checkbox"
               checked={selectedEntries.has(i)}
               onChange={() => onToggleEntry(i)}
-              style={{
-                accentColor: "var(--primary)",
-                width: 14,
-                height: 14,
-                flexShrink: 0,
-              }}
+              style={checkboxStyle}
             />
             <span
               style={{
@@ -134,12 +136,7 @@ export function PlaylistView({
           type="checkbox"
           checked={audioOnly}
           onChange={(e) => onAudioOnlyChange(e.target.checked)}
-          style={{
-            accentColor: "var(--primary)",
-            width: 14,
-            height: 14,
-            flexShrink: 0,
-          }}
+          style={checkboxStyle}
         />
         <span
           style={{ fontSize: 13, fontWeight: 700, color: "var(--text-sec)" }}
@@ -154,22 +151,9 @@ export function PlaylistView({
         disabled={selectedEntries.size === 0}
         className="btn-primary"
         style={{
+          ...primaryButton(selectedEntries.size === 0),
           width: "100%",
-          background:
-            selectedEntries.size === 0 ? "var(--border)" : "var(--primary)",
-          border: "none",
-          borderRadius: "var(--radius-pill)",
           padding: "13px 16px",
-          color: selectedEntries.size === 0 ? "var(--text-muted)" : "#fff",
-          fontFamily: "inherit",
-          fontSize: 14,
-          fontWeight: 800,
-          cursor: selectedEntries.size === 0 ? "not-allowed" : "pointer",
-          transition: "all 0.18s cubic-bezier(0.34, 1.3, 0.64, 1)",
-          boxShadow:
-            selectedEntries.size === 0
-              ? "none"
-              : "0 4px 14px var(--primary-glow)",
         }}
       >
         Download selected ({selectedEntries.size})

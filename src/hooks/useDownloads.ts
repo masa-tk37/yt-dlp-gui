@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { api } from "../api/client"
 import type { Job } from "../types"
 import { TERMINAL_STATUSES } from "../types"
@@ -62,7 +62,9 @@ export function useDownloads() {
     await api.downloads.cancel(jobId)
     setJobs((prev) =>
       prev.map((j) =>
-        j.id === jobId ? { ...j, status: "cancelled" as const } : j,
+        j.id === jobId && !TERMINAL_STATUSES.has(j.status)
+          ? { ...j, status: "cancelled" as const }
+          : j,
       ),
     )
   }, [])
