@@ -1,19 +1,19 @@
-import { memo, useState, type KeyboardEvent } from "react"
-import { PiMusicNote } from "react-icons/pi"
+import { type KeyboardEvent, memo, useRef, useState } from "react"
+import { PiMusicNote, PiX } from "react-icons/pi"
+import {
+  FORMAT_PRESET_AUDIO,
+  FORMAT_PRESET_MP4,
+  MP4_FORMAT_STRING,
+} from "../constants/format-presets"
 import { useFormats } from "../hooks/useFormats"
 import {
-  formInput,
   fieldLabel,
+  formInput,
   primaryButton,
   sectionCard,
 } from "../styles/form-styles"
 import { PlaylistView } from "./PlaylistView"
 import { SingleVideoView } from "./SingleVideoView"
-import {
-  FORMAT_PRESET_MP4,
-  FORMAT_PRESET_AUDIO,
-  MP4_FORMAT_STRING,
-} from "../constants/format-presets"
 
 interface DownloadFormProps {
   onDownload: (
@@ -41,16 +41,37 @@ export const DownloadForm = memo(function DownloadForm({
   const { videoInfo, fetchFormats, reset, loading, error } = useFormats()
   const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const urlInputRef = useRef<HTMLInputElement>(null)
+  const playlistEntries = videoInfo?.isPlaylist
+    ? (videoInfo.entries ?? [])
+    : null
 
-  const startFetch = (rawUrl: string) => {
+  const resetResult = () => {
     reset()
     setSubmitError(null)
     setSelectedEntries(new Set())
+    // Format IDs are per-video; a kept selection may not exist in the next result.
+    setFormatId(FORMAT_PRESET_MP4)
+  }
+
+  const startFetch = (rawUrl: string) => {
+    resetResult()
     fetchFormats(rawUrl)
   }
 
+  const clearForm = () => {
+    resetResult()
+    setUrl("")
+    setAudioOnly(false)
+  }
+
+  const handleClear = () => {
+    clearForm()
+    urlInputRef.current?.focus()
+  }
+
   const handleFetch = () => {
-    if (!url.trim()) return
+    if (loading || !url.trim()) return
     startFetch(url.trim())
   }
 
@@ -61,6 +82,7 @@ export const DownloadForm = memo(function DownloadForm({
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pasted = e.clipboardData.getData("text").trim()
     if (pasted.startsWith("http")) {
+      e.preventDefault()
       setUrl(pasted)
       startFetch(pasted)
     }
@@ -71,14 +93,15 @@ export const DownloadForm = memo(function DownloadForm({
     setSubmitError(null)
     try {
       await submitDownload()
+      clearForm()
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : String(e))
     }
   }
 
   const submitDownload = async () => {
-    if (videoInfo?.isPlaylist && videoInfo.entries) {
-      const entries = videoInfo.entries.filter((_, i) => selectedEntries.has(i))
+    if (playlistEntries) {
+      const entries = playlistEntries.filter((_, i) => selectedEntries.has(i))
       if (entries.length > 0) {
         await onBulkDownload(
           entries.map((e) => e.url),
@@ -118,9 +141,8 @@ export const DownloadForm = memo(function DownloadForm({
     })
   }
 
-  const isPlaylist =
-    videoInfo?.isPlaylist && videoInfo.entries && videoInfo.entries.length > 0
   const btnDisabled = loading || !url.trim()
+  const showClear = url.length > 0
 
   return (
     <section style={{ ...sectionCard, padding: "22px 22px" }}>
@@ -140,6 +162,7 @@ export const DownloadForm = memo(function DownloadForm({
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ position: "relative", flex: 1 }}>
             <input
+              ref={urlInputRef}
               type="text"
               placeholder="https://youtube.com/watch?v=..."
               value={url}
@@ -149,7 +172,7 @@ export const DownloadForm = memo(function DownloadForm({
               readOnly={loading}
               style={{
                 ...formInput,
-                paddingRight: loading ? 40 : 16,
+                paddingRight: loading ? 68 : showClear ? 40 : 16,
                 cursor: loading ? "default" : undefined,
                 opacity: loading ? 0.7 : 1,
               }}
@@ -158,13 +181,38 @@ export const DownloadForm = memo(function DownloadForm({
               <div
                 style={{
                   position: "absolute",
-                  right: 12,
+                  right: 40,
                   top: "50%",
                   transform: "translateY(-50%)",
                 }}
               >
                 <div className="url-checking-spinner" />
               </div>
+            )}
+            {showClear && (
+              <button
+                type="button"
+                onClick={handleClear}
+                title="Clear"
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <PiX size={14} />
+              </button>
             )}
           </div>
           <button
@@ -235,7 +283,7 @@ export const DownloadForm = memo(function DownloadForm({
             >
               {videoInfo.title}
             </span>
-            {isPlaylist && (
+            {playlistEntries && (
               <span
                 style={{
                   fontSize: 10,
@@ -254,9 +302,9 @@ export const DownloadForm = memo(function DownloadForm({
             )}
           </div>
 
-          {isPlaylist ? (
+          {playlistEntries ? (
             <PlaylistView
-              entries={videoInfo.entries ?? []}
+              entries={playlistEntries}
               selectedEntries={selectedEntries}
               audioOnly={audioOnly}
               onToggleAll={toggleAll}

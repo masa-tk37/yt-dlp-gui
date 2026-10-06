@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react"
+import { useCallback, useRef, useState } from "react"
 import { api } from "../api/client"
 import type { VideoInfo } from "../types"
 
@@ -9,11 +9,15 @@ export function useFormats() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cache = useRef(new Map<string, VideoInfo>())
+  const requestId = useRef(0)
 
   const fetchFormats = useCallback(async (url: string) => {
+    const id = ++requestId.current
     const cached = cache.current.get(url)
     if (cached) {
       setVideoInfo(cached)
+      setLoading(false)
+      setError(null)
       return
     }
 
@@ -26,15 +30,18 @@ export function useFormats() {
         if (firstKey !== undefined) cache.current.delete(firstKey)
       }
       cache.current.set(url, result)
-      setVideoInfo(result)
+      if (id === requestId.current) setVideoInfo(result)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch formats")
+      if (id === requestId.current)
+        setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
   }, [])
 
   const reset = useCallback(() => {
+    requestId.current++
+    setLoading(false)
     setVideoInfo(null)
     setError(null)
   }, [])
