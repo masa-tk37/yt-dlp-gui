@@ -1,6 +1,6 @@
 import { PiWrench } from "react-icons/pi"
-import type { DependencyStatus, ToolInfo } from "../types"
 import { sectionCard, sectionTitle } from "../styles/form-styles"
+import type { DependencyStatus, ToolInfo } from "../types"
 
 interface ToolColProps {
   label: string

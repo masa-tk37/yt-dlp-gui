@@ -1,6 +1,6 @@
+import type { DependencyStatus } from "../types"
 import { SettingsPanel } from "./SettingsPanel"
 import { ToolsPanel } from "./ToolsPanel"
-import type { DependencyStatus } from "../types"
 
 interface Props {
   dependencies: DependencyStatus | null

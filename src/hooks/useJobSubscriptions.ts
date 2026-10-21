@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event"
-import { useCallback, useRef } from "react"
 import type { Dispatch, SetStateAction } from "react"
-import type { Job, DownloadProgress } from "../types"
+import { useCallback, useRef } from "react"
+import type { DownloadProgress, Job } from "../types"
 import { TERMINAL_STATUSES } from "../types"
 
 type UnlistenFn = () => void

@@ -1,5 +1,5 @@
-import type { VideoInfo } from "../types"
 import { fieldLabel, primaryButton } from "../styles/form-styles"
+import type { VideoInfo } from "../types"
 
 const checkboxStyle: React.CSSProperties = {
   accentColor: "var(--primary)",

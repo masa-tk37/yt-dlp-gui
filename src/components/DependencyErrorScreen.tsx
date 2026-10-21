@@ -1,10 +1,10 @@
-import { PiWarningCircle, PiCheckCircle, PiXCircle } from "react-icons/pi"
-import type { DependencyStatus, ToolInfo } from "../types"
+import { PiCheckCircle, PiWarningCircle, PiXCircle } from "react-icons/pi"
 import {
   sectionCard,
-  toolRowStyle,
   toolLabelStyle,
+  toolRowStyle,
 } from "../styles/form-styles"
+import type { DependencyStatus, ToolInfo } from "../types"
 
 const codeStyle: React.CSSProperties = {
   background: "var(--bg-input)",

@@ -1,10 +1,10 @@
 import { PiCaretDown } from "react-icons/pi"
-import type { Format } from "../types"
-import { formInput, fieldLabel, primaryButton } from "../styles/form-styles"
 import {
-  FORMAT_PRESET_MP4,
   FORMAT_PRESET_AUDIO,
+  FORMAT_PRESET_MP4,
 } from "../constants/format-presets"
+import { fieldLabel, formInput, primaryButton } from "../styles/form-styles"
+import type { Format } from "../types"
 
 interface SingleVideoViewProps {
   formats: Format[]

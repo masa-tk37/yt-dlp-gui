@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react"
-import { PiTrayArrowDown, PiPawPrint } from "react-icons/pi"
+import { useCallback, useState } from "react"
+import { PiPawPrint, PiTrayArrowDown } from "react-icons/pi"
+import { sectionCard, sectionTitle } from "../styles/form-styles"
 import type { Job } from "../types"
 import { TERMINAL_STATUSES } from "../types"
-import { DownloadItem } from "./DownloadItem"
 import { ConfirmModal } from "./ConfirmModal"
-import { sectionCard, sectionTitle } from "../styles/form-styles"
+import { DownloadItem } from "./DownloadItem"
 
 const pillGhostButton: React.CSSProperties = {
   fontSize: 11,

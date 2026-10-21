@@ -1,13 +1,13 @@
 import { useState } from "react"
-import { PiGearSix, PiArrowLeft } from "react-icons/pi"
-import { useDownloads } from "./hooks/useDownloads"
-import { useTauriBackend } from "./hooks/useTauri"
-import { APP_NAME } from "./constants/app-info"
+import { PiArrowLeft, PiGearSix } from "react-icons/pi"
+import { DependencyErrorScreen } from "./components/DependencyErrorScreen"
 import { DownloadForm } from "./components/DownloadForm"
 import { DownloadQueue } from "./components/DownloadQueue"
-import { SettingsView } from "./components/SettingsView"
-import { DependencyErrorScreen } from "./components/DependencyErrorScreen"
 import { FoxLogo } from "./components/FoxLogo"
+import { SettingsView } from "./components/SettingsView"
+import { APP_NAME } from "./constants/app-info"
+import { useDownloads } from "./hooks/useDownloads"
+import { useTauriBackend } from "./hooks/useTauri"
 
 const MAX_CONTENT_WIDTH = 760
 
