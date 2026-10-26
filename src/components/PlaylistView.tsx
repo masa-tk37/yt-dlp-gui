@@ -1,15 +1,11 @@
-import { fieldLabel, primaryButton } from "../styles/form-styles"
+import { memo } from "react"
+import { prominentButton, secondaryText, truncate } from "../styles/form-styles"
 import type { VideoInfo } from "../types"
 
-const checkboxStyle: React.CSSProperties = {
-  accentColor: "var(--primary)",
-  width: 14,
-  height: 14,
-  flexShrink: 0,
-}
+type Entries = NonNullable<VideoInfo["entries"]>
 
 interface PlaylistViewProps {
-  entries: NonNullable<VideoInfo["entries"]>
+  entries: Entries
   selectedEntries: Set<number>
   audioOnly: boolean
   onToggleAll: () => void
@@ -17,6 +13,55 @@ interface PlaylistViewProps {
   onAudioOnlyChange: (checked: boolean) => void
   onDownload: () => void
 }
+
+interface PlaylistRowProps {
+  entry: Entries[number]
+  index: number
+  checked: boolean
+  isLast: boolean
+  onToggle: (index: number) => void
+}
+
+function formatDuration(seconds: number): string {
+  const total = Math.floor(seconds)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
+}
+
+const checkboxLabel = { display: "flex", alignItems: "center", gap: 6 } as const
+
+// Memoized because the parent re-renders on every download-progress event.
+const PlaylistRow = memo(function PlaylistRow({
+  entry,
+  index,
+  checked,
+  isLast,
+  onToggle,
+}: PlaylistRowProps) {
+  return (
+    <label
+      className="list-row"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "5px 10px",
+        borderBottom: isLast ? "none" : "0.5px solid var(--separator)",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onToggle(index)}
+      />
+      <span style={{ ...truncate, flex: 1 }}>{entry.title}</span>
+      {entry.duration != null && (
+        <span style={{ ...secondaryText, fontVariantNumeric: "tabular-nums" }}>
+          {formatDuration(entry.duration)}
+        </span>
+      )}
+    </label>
+  )
+})
 
 export function PlaylistView({
   entries,
@@ -27,137 +72,58 @@ export function PlaylistView({
   onAudioOnlyChange,
   onDownload,
 }: PlaylistViewProps) {
+  const allSelected =
+    entries.length > 0 && selectedEntries.size === entries.length
+
   return (
     <div>
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 8,
-        }}
-      >
-        <span style={{ ...fieldLabel, margin: 0 }}>
-          {entries.length} tracks
-        </span>
-        <button
-          type="button"
-          onClick={onToggleAll}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--primary)",
-            fontFamily: "inherit",
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: "pointer",
-            padding: "2px 0",
-          }}
-        >
-          {selectedEntries.size === entries.length
-            ? "Deselect all"
-            : "Select all"}
-        </button>
-      </div>
-
-      <div
-        style={{
-          maxHeight: 240,
+          maxHeight: 220,
           overflowY: "auto",
-          border: "1.5px solid var(--border)",
-          borderRadius: 14,
-          marginBottom: 14,
+          border: "0.5px solid var(--separator)",
+          borderRadius: "var(--radius-control)",
+          marginBottom: 12,
         }}
       >
         {entries.map((entry, i) => (
-          <label
+          <PlaylistRow
             key={entry.url}
-            className="item-label"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "9px 14px",
-              cursor: "pointer",
-              borderBottom:
-                i < entries.length - 1 ? "1px solid var(--border-sub)" : "none",
-              background: selectedEntries.has(i)
-                ? "var(--primary-dim)"
-                : "transparent",
-              transition: "background 0.12s",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={selectedEntries.has(i)}
-              onChange={() => onToggleEntry(i)}
-              style={checkboxStyle}
-            />
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--text)",
-                flex: 1,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {entry.title}
-            </span>
-            {entry.duration != null && (
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-muted)",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {Math.floor(entry.duration / 60)}:
-                {String(entry.duration % 60).padStart(2, "0")}
-              </span>
-            )}
-          </label>
+            entry={entry}
+            index={i}
+            checked={selectedEntries.has(i)}
+            isLast={i === entries.length - 1}
+            onToggle={onToggleEntry}
+          />
         ))}
       </div>
 
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          cursor: "pointer",
-          marginBottom: 14,
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={audioOnly}
-          onChange={(e) => onAudioOnlyChange(e.target.checked)}
-          style={checkboxStyle}
-        />
-        <span
-          style={{ fontSize: 13, fontWeight: 700, color: "var(--text-sec)" }}
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <label style={checkboxLabel}>
+          <input type="checkbox" checked={allSelected} onChange={onToggleAll} />
+          Select All
+        </label>
+        <label style={checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={audioOnly}
+            onChange={(e) => onAudioOnlyChange(e.target.checked)}
+          />
+          Audio Only (MP3)
+        </label>
+        <button
+          type="button"
+          className="prominent-button"
+          onClick={onDownload}
+          disabled={selectedEntries.size === 0}
+          style={{
+            ...prominentButton(selectedEntries.size === 0),
+            marginLeft: "auto",
+          }}
         >
-          Audio only (MP3)
-        </span>
-      </label>
-
-      <button
-        type="button"
-        onClick={onDownload}
-        disabled={selectedEntries.size === 0}
-        className="btn-primary"
-        style={{
-          ...primaryButton(selectedEntries.size === 0),
-          width: "100%",
-          padding: "13px 16px",
-        }}
-      >
-        Download selected ({selectedEntries.size})
-      </button>
+          Download {selectedEntries.size > 0 ? `(${selectedEntries.size})` : ""}
+        </button>
+      </div>
     </div>
   )
 }

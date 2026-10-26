@@ -12,7 +12,7 @@
   "bundle": {
     "active": true,
     "targets": ["app"],
-    "icon": ["icons/icon.icns"],
+    "icon": ["icons/icon.icns", "icons/icon.png"],
     "macOS": {
       "minimumSystemVersion": "26"
     }
@@ -20,15 +20,22 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "yt-dlp GUI",
-        "width": 900,
-        "height": 780,
-        "minWidth": 900,
-        "minHeight": 780
+        "width": 720,
+        "height": 640,
+        "minWidth": 560,
+        "minHeight": 480,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 20,
+          "y": 20
+        }
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
     }
   }
 }

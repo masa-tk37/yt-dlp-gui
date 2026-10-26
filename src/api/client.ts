@@ -41,4 +41,8 @@ export const api = {
   dependencies: {
     status: (): Promise<DependencyStatus> => invoke("get_dependency_status"),
   },
+
+  appearance: {
+    accentColor: (): Promise<string | null> => invoke("get_accent_color"),
+  },
 }

@@ -1,52 +1,23 @@
-import { PiCheckCircle, PiWarningCircle, PiXCircle } from "react-icons/pi"
-import {
-  sectionCard,
-  toolLabelStyle,
-  toolRowStyle,
-} from "../styles/form-styles"
+import { PiCheckCircleFill, PiWarningFill, PiXCircleFill } from "react-icons/pi"
+import { APP_NAME } from "../constants/app-info"
+import { groupBox, secondaryText } from "../styles/form-styles"
 import type { DependencyStatus, ToolInfo } from "../types"
-
-const codeStyle: React.CSSProperties = {
-  background: "var(--bg-input)",
-  border: "1.5px solid var(--border)",
-  borderRadius: 6,
-  padding: "6px 12px",
-  fontSize: 13,
-  color: "var(--amber)",
-}
 
 function DepRow({ label, tool }: { label: string; tool: ToolInfo | null }) {
   return (
-    <div style={toolRowStyle}>
-      <span style={toolLabelStyle}>{label}</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {tool ? (
-        <span
-          style={{
-            color: "var(--green-text)",
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <PiCheckCircle size={14} /> {tool.version}
-        </span>
+        <PiCheckCircleFill size={16} style={{ color: "var(--green)" }} />
       ) : (
-        <span
-          style={{
-            color: "var(--red-text)",
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <PiXCircle size={14} /> Not found
-        </span>
+        <PiXCircleFill size={16} style={{ color: "var(--red)" }} />
       )}
+      <span style={{ fontWeight: 500, flex: 1 }}>{label}</span>
+      <span style={secondaryText}>{tool ? tool.version : "Not Found"}</span>
     </div>
   )
 }
+
+const panel = { ...groupBox, width: 300, textAlign: "left" } as const
 
 interface Props {
   dependencies: DependencyStatus | null
@@ -54,55 +25,43 @@ interface Props {
 }
 
 export function DependencyErrorScreen({ dependencies, error }: Props) {
-  const ytdlpMissing = dependencies !== null && !dependencies.ytdlp
-  const ffmpegMissing = dependencies !== null && !dependencies.ffmpeg
+  const installCommands = [
+    dependencies && !dependencies.ytdlp ? "brew install yt-dlp" : null,
+    dependencies && !dependencies.ffmpeg ? "brew install ffmpeg" : null,
+  ].filter((c): c is string => c !== null)
 
   return (
     <div
+      data-tauri-drag-region="deep"
       style={{
-        minHeight: "100vh",
+        height: "100%",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        flexDirection: "column",
-        gap: 20,
-        padding: "0 24px",
-        fontFamily: "inherit",
+        gap: 12,
+        padding: "0 32px",
+        textAlign: "center",
       }}
     >
-      <span
-        style={{
-          fontSize: 22,
-          color: "var(--text-sec)",
-          fontWeight: 800,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
+      <PiWarningFill size={44} style={{ color: "var(--orange)" }} />
+      <h1 style={{ fontSize: 17, fontWeight: 600 }}>
+        {dependencies ? "Required Tools Are Missing" : "Couldn’t Start"}
+      </h1>
+      <p
+        className="selectable"
+        data-tauri-drag-region="false"
+        style={{ color: "var(--secondary-label)", maxWidth: 420 }}
       >
-        <PiWarningCircle size={24} />
-        {dependencies ? "Dependencies Missing" : "Startup Failed"}
-      </span>
-
-      {error && (
-        <span
-          style={{
-            fontSize: 13,
-            color: "var(--red-text)",
-            fontWeight: 700,
-            textAlign: "center",
-            maxWidth: 480,
-          }}
-        >
-          {error}
-        </span>
-      )}
+        {error ??
+          `${APP_NAME} needs these command-line tools. Install them with Homebrew, then quit and reopen the app.`}
+      </p>
 
       {dependencies && (
         <div
           style={{
-            ...sectionCard,
-            minWidth: 320,
+            ...panel,
+            padding: "10px 14px",
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -113,35 +72,19 @@ export function DependencyErrorScreen({ dependencies, error }: Props) {
         </div>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          textAlign: "center",
-        }}
-      >
-        {(ytdlpMissing || ffmpegMissing) && (
-          <>
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              Install missing tools:
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {ytdlpMissing && (
-                <code style={codeStyle}>brew install yt-dlp</code>
-              )}
-              {ffmpegMissing && (
-                <code style={codeStyle}>brew install ffmpeg</code>
-              )}
-            </div>
-          </>
-        )}
-        <span
-          style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}
+      {installCommands.length > 0 && (
+        <pre
+          className="selectable"
+          data-tauri-drag-region="false"
+          style={{
+            ...panel,
+            padding: "8px 14px",
+            font: "12px ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
         >
-          Then restart the app.
-        </span>
-      </div>
+          {installCommands.join("\n")}
+        </pre>
+      )}
     </div>
   )
 }

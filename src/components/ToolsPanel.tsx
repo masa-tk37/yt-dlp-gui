@@ -1,75 +1,50 @@
-import { PiWrench } from "react-icons/pi"
-import { sectionCard, sectionTitle } from "../styles/form-styles"
+import {
+  formRow,
+  groupBox,
+  groupHeading,
+  rowDivider,
+  secondaryText,
+  truncate,
+} from "../styles/form-styles"
 import type { DependencyStatus, ToolInfo } from "../types"
 
-interface ToolColProps {
-  label: string
-  tool: ToolInfo | null
-}
-
-const subLabel: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  letterSpacing: "0.05em",
-  textTransform: "uppercase",
-}
-
-function ToolCol({ label, tool }: ToolColProps) {
+function ToolRow({ label, tool }: { label: string; tool: ToolInfo | null }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
-        {label}
-      </span>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <span style={subLabel}>Version</span>
-        <span
-          style={{ fontWeight: 700, fontSize: 13, color: "var(--text-sec)" }}
+    <div style={formRow}>
+      <span>{label}</span>
+      <div style={{ textAlign: "right", minWidth: 0 }}>
+        <div
+          className="selectable"
+          style={{ color: tool ? "var(--label)" : "var(--red)" }}
         >
-          {tool?.version ?? (
-            <span style={{ color: "var(--red-text)" }}>Not installed</span>
-          )}
-        </span>
-      </div>
-      {tool && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={subLabel}>Path</span>
-          <span
-            style={{
-              fontSize: 11,
-              color: "var(--text-muted)",
-              fontWeight: 600,
-            }}
+          {tool?.version ?? "Not Found"}
+        </div>
+        {tool && (
+          <div
+            className="selectable"
+            title={tool.path}
+            style={{ ...secondaryText, ...truncate, maxWidth: 300 }}
           >
             {tool.path}
-          </span>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-interface Props {
+export function ToolsPanel({
+  dependencies,
+}: {
   dependencies: DependencyStatus
-}
-
-export function ToolsPanel({ dependencies }: Props) {
+}) {
   return (
-    <section style={sectionCard}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 14,
-        }}
-      >
-        <PiWrench size={18} />
-        <span style={sectionTitle}>Tools</span>
-      </div>
-      <div style={{ display: "flex", gap: 16 }}>
-        <ToolCol label="yt-dlp" tool={dependencies.ytdlp} />
-        <ToolCol label="ffmpeg" tool={dependencies.ffmpeg} />
+    <section>
+      <h2 style={groupHeading}>Tools</h2>
+      <div style={groupBox}>
+        <ToolRow label="yt-dlp" tool={dependencies.ytdlp} />
+        <div style={rowDivider} />
+        <ToolRow label="ffmpeg" tool={dependencies.ffmpeg} />
       </div>
     </section>
   )

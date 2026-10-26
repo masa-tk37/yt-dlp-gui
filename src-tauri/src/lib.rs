@@ -1,3 +1,5 @@
+mod accent_color;
+mod app_menu;
 mod commands;
 mod download_manager;
 mod error;
@@ -13,7 +15,7 @@ mod ytdlp_parser;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 use commands::{
     add_bulk_downloads, add_download, cancel_all_downloads, cancel_download, clear_completed,
@@ -32,8 +34,10 @@ pub struct AppState {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            accent_color::get_accent_color,
             add_download,
             add_bulk_downloads,
             get_all_jobs,
@@ -67,8 +71,25 @@ pub fn run() {
                 settings: settings_store,
             });
 
+            app_menu::install(app)?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(|window, event| match event {
+            // Closing the main window hides it so in-flight downloads keep running.
+            WindowEvent::CloseRequested { api, .. } if window.label() == app_menu::MAIN_WINDOW => {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+            // Accent changes have no window event; refocus is when the user returns from System Settings.
+            WindowEvent::Focused(true) => accent_color::broadcast(window.app_handle()),
+            _ => {}
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app, event| {
+        if let RunEvent::Reopen { .. } = event {
+            app_menu::show_main(app);
+        }
+    });
 }

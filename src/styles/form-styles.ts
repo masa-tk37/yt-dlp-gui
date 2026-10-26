@@ -1,67 +1,89 @@
-export const formInput: React.CSSProperties = {
+export const textField: React.CSSProperties = {
   width: "100%",
-  background: "var(--bg-input)",
-  border: "1.5px solid var(--border)",
-  borderRadius: 12,
-  padding: "11px 16px",
-  color: "var(--text)",
-  fontFamily: "inherit",
-  fontSize: 14,
-  fontWeight: 600,
-  transition: "border-color 0.15s, box-shadow 0.15s",
+  height: 28,
+  background: "var(--content-bg)",
+  border: "0.5px solid var(--separator)",
+  borderRadius: "var(--radius-control)",
+  padding: "0 8px",
+  color: "var(--label)",
+  boxShadow: "inset 0 0.5px 1px rgba(0, 0, 0, 0.06)",
 }
 
-export const fieldLabel: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 800,
-  color: "var(--text-muted)",
-  marginBottom: 6,
-  letterSpacing: "0.02em",
+export const pushButton: React.CSSProperties = {
+  height: 28,
+  padding: "0 14px",
+  background: "var(--fill)",
+  border: "none",
+  borderRadius: "var(--radius-control)",
+  color: "var(--label)",
+  fontWeight: 500,
+  whiteSpace: "nowrap",
 }
 
-export const toolLabelStyle: React.CSSProperties = {
-  ...fieldLabel,
-  fontSize: 11,
-  letterSpacing: "0.06em",
-  minWidth: 60,
-  marginBottom: 0,
+export function prominentButton(disabled = false): React.CSSProperties {
+  return {
+    ...pushButton,
+    background: disabled ? "var(--fill)" : "var(--accent)",
+    color: disabled ? "var(--tertiary-label)" : "#fff",
+  }
 }
 
-export const toolRowStyle: React.CSSProperties = {
+export const iconButton: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  padding: 0,
   display: "flex",
   alignItems: "center",
-  gap: 8,
+  justifyContent: "center",
+  background: "transparent",
+  border: "none",
+  borderRadius: "var(--radius-capsule)",
+  color: "var(--label)",
+}
+
+export const toolbarCapsule: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  height: 32,
+  background: "var(--fill)",
+  borderRadius: "var(--radius-capsule)",
+}
+
+export const groupBox: React.CSSProperties = {
+  background: "var(--content-bg)",
+  borderRadius: "var(--radius-group)",
+  boxShadow: "var(--group-shadow)",
+}
+
+export const groupHeading: React.CSSProperties = {
   fontSize: 13,
-  color: "var(--text-sec)",
+  fontWeight: 600,
+  color: "var(--label)",
+  margin: "0 4px 6px",
 }
 
-export const sectionCard: React.CSSProperties = {
-  background: "var(--bg-card)",
-  border: "1.5px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "20px 22px",
-  boxShadow: "var(--shadow-card)",
+export const formRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  minHeight: 44,
+  padding: "8px 14px",
 }
 
-export const sectionTitle: React.CSSProperties = {
-  fontFamily: '"Fredoka", sans-serif',
-  fontSize: 16,
-  color: "var(--text-sec)",
-  letterSpacing: "0.02em",
+export const rowDivider: React.CSSProperties = {
+  height: 0.5,
+  background: "var(--separator)",
+  marginLeft: 14,
 }
 
-export function primaryButton(disabled = false): React.CSSProperties {
-  return {
-    background: disabled ? "var(--border)" : "var(--primary)",
-    border: "none",
-    borderRadius: "var(--radius-pill)",
-    color: disabled ? "var(--text-muted)" : "#fff",
-    fontFamily: "inherit",
-    fontSize: 14,
-    fontWeight: 800,
-    cursor: disabled ? "not-allowed" : "pointer",
-    transition: "all 0.18s cubic-bezier(0.34, 1.3, 0.64, 1)",
-    boxShadow: disabled ? "none" : "0 4px 14px var(--primary-glow)",
-  }
+export const secondaryText: React.CSSProperties = {
+  fontSize: 11,
+  color: "var(--secondary-label)",
+}
+
+export const truncate: React.CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 }
