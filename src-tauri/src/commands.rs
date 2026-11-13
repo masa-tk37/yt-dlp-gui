@@ -14,8 +14,7 @@ const MAX_BULK_URLS: usize = 1000;
 pub(crate) fn get_dm(state: &AppState) -> Result<Arc<Mutex<DownloadManager>>, String> {
     state
         .download_manager
-        .as_ref()
-        .cloned()
+        .clone()
         .ok_or_else(|| crate::YTDLP_NOT_FOUND_MSG.to_string())
 }
 
@@ -54,7 +53,7 @@ pub async fn add_download(
         dm.add_job(url, format_id, audio_only, title)?
     };
 
-    DownloadManager::try_start_pending(dm, state.settings.clone());
+    DownloadManager::try_start_pending(&dm, &state.settings);
 
     Ok(job)
 }
@@ -68,7 +67,7 @@ pub async fn add_bulk_downloads(
     state: State<'_, AppState>,
 ) -> Result<Vec<Job>, String> {
     if urls.len() > MAX_BULK_URLS {
-        return Err(format!("Too many URLs: max {} allowed", MAX_BULK_URLS));
+        return Err(format!("Too many URLs: max {MAX_BULK_URLS} allowed"));
     }
     for url in &urls {
         validate_url(url)?;
@@ -91,7 +90,7 @@ pub async fn add_bulk_downloads(
         }
     }
 
-    DownloadManager::try_start_pending(dm, state.settings.clone());
+    DownloadManager::try_start_pending(&dm, &state.settings);
 
     Ok(jobs)
 }
@@ -107,12 +106,12 @@ pub async fn cancel_download(id: String, state: State<'_, AppState>) -> Result<(
 }
 
 #[tauri::command]
-pub async fn cancel_all_downloads(state: State<'_, AppState>) -> Result<u32, String> {
+pub async fn cancel_all_downloads(state: State<'_, AppState>) -> Result<usize, String> {
     Ok(get_dm(&state)?.lock().cancel_all())
 }
 
 #[tauri::command]
-pub async fn clear_completed(state: State<'_, AppState>) -> Result<u32, String> {
+pub async fn clear_completed(state: State<'_, AppState>) -> Result<usize, String> {
     Ok(get_dm(&state)?.lock().clear_completed())
 }
 

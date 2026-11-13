@@ -33,30 +33,27 @@ pub fn parse_progress(line: &str, job_id: &str) -> Option<DownloadProgress> {
 }
 
 pub fn parse_single_video(data: &Value) -> VideoInfo {
-    let formats: Vec<Format> = data["formats"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .map(|f| Format {
-                    format_id: f["format_id"].as_str().unwrap_or("").to_string(),
-                    ext: f["ext"].as_str().unwrap_or("").to_string(),
-                    resolution: f["resolution"].as_str().map(String::from),
-                    filesize: f["filesize"]
-                        .as_u64()
-                        .or_else(|| f["filesize_approx"].as_u64()),
-                    vcodec: f["vcodec"]
-                        .as_str()
-                        .filter(|&v| v != "none")
-                        .map(String::from),
-                    acodec: f["acodec"]
-                        .as_str()
-                        .filter(|&v| v != "none")
-                        .map(String::from),
-                    note: f["format_note"].as_str().map(String::from),
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let formats: Vec<Format> = data["formats"].as_array().map_or_default(|arr| {
+        arr.iter()
+            .map(|f| Format {
+                format_id: f["format_id"].as_str().unwrap_or("").to_string(),
+                ext: f["ext"].as_str().unwrap_or("").to_string(),
+                resolution: f["resolution"].as_str().map(String::from),
+                filesize: f["filesize"]
+                    .as_u64()
+                    .or_else(|| f["filesize_approx"].as_u64()),
+                vcodec: f["vcodec"]
+                    .as_str()
+                    .filter(|&v| v != "none")
+                    .map(String::from),
+                acodec: f["acodec"]
+                    .as_str()
+                    .filter(|&v| v != "none")
+                    .map(String::from),
+                note: f["format_note"].as_str().map(String::from),
+            })
+            .collect()
+    });
 
     VideoInfo {
         title: data["title"].as_str().unwrap_or("Unknown").to_string(),
@@ -67,22 +64,19 @@ pub fn parse_single_video(data: &Value) -> VideoInfo {
 }
 
 pub fn parse_playlist(data: &Value) -> VideoInfo {
-    let entries: Vec<PlaylistEntry> = data["entries"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .map(|e| PlaylistEntry {
-                    url: e["url"].as_str().unwrap_or("").to_string(),
-                    title: e["title"]
-                        .as_str()
-                        .or_else(|| e["url"].as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    duration: e["duration"].as_f64(),
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let entries: Vec<PlaylistEntry> = data["entries"].as_array().map_or_default(|arr| {
+        arr.iter()
+            .map(|e| PlaylistEntry {
+                url: e["url"].as_str().unwrap_or("").to_string(),
+                title: e["title"]
+                    .as_str()
+                    .or_else(|| e["url"].as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                duration: e["duration"].as_f64(),
+            })
+            .collect()
+    });
 
     VideoInfo {
         title: data["title"].as_str().unwrap_or("Playlist").to_string(),
@@ -201,8 +195,8 @@ mod tests {
         assert_eq!(result.speed, "1.5MiB/s");
         assert_eq!(result.eta, "00:30");
         assert_eq!(result.filename, "video.mp4");
-        assert_eq!(result.total_bytes, Some(1000000));
-        assert_eq!(result.downloaded_bytes, Some(425000));
+        assert_eq!(result.total_bytes, Some(1_000_000));
+        assert_eq!(result.downloaded_bytes, Some(425_000));
     }
 
     #[test]
@@ -220,7 +214,7 @@ mod tests {
         let line = r#"PROGRESS:{"_percent_str":"10%","total_bytes_estimate":500000}"#;
         let result = parse_progress(line, "job-1").unwrap();
         assert_eq!(result.total_bytes, None);
-        assert_eq!(result.total_bytes_estimate, Some(500000));
+        assert_eq!(result.total_bytes_estimate, Some(500_000));
     }
 
     #[test]
@@ -239,7 +233,7 @@ mod tests {
                     "format_id": "137",
                     "ext": "mp4",
                     "resolution": "1920x1080",
-                    "filesize": 50000000,
+                    "filesize": 50_000_000,
                     "vcodec": "avc1",
                     "acodec": "none",
                     "format_note": "1080p"
@@ -253,7 +247,7 @@ mod tests {
         assert_eq!(info.formats[0].format_id, "137");
         assert_eq!(info.formats[0].ext, "mp4");
         assert_eq!(info.formats[0].resolution, Some("1920x1080".to_string()));
-        assert_eq!(info.formats[0].filesize, Some(50000000));
+        assert_eq!(info.formats[0].filesize, Some(50_000_000));
         assert_eq!(info.formats[0].vcodec, Some("avc1".to_string()));
         assert!(info.formats[0].acodec.is_none()); // "none" filtered
     }

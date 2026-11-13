@@ -35,6 +35,11 @@ pub struct AppState {
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             accent_color::get_accent_color,
@@ -57,8 +62,8 @@ pub fn run() {
                 .join(".yt-dlp-gui")
                 .join("data");
             let settings_store = Arc::new(Mutex::new(
-                SettingsStore::new(data_dir)
-                    .map_err(|e| format!("Failed to init settings: {}", e))?,
+                SettingsStore::new(&data_dir)
+                    .map_err(|e| format!("Failed to init settings: {e}"))?,
             ));
 
             let download_manager = ytdlp::find_ytdlp().map(|ytdlp_path| {

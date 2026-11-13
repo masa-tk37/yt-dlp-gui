@@ -76,7 +76,7 @@ mod tests {
     fn explain_drm() {
         let msg = explain(DRM).unwrap();
         assert!(msg.starts_with("This video is protected by DRM."));
-        assert!(msg.ends_with(&format!("(yt-dlp: {})", DRM)));
+        assert!(msg.ends_with(&format!("(yt-dlp: {DRM})")));
     }
 
     #[test]
@@ -115,7 +115,7 @@ mod tests {
     // The misdiagnosis this module exists to prevent: a DRM warning must not mask the real error
     #[test]
     fn explain_prefers_fatal_error_over_drm_warning() {
-        let stderr = format!("WARNING: Some formats are DRM protected\n{}", NO_FORMAT);
+        let stderr = format!("WARNING: Some formats are DRM protected\n{NO_FORMAT}");
         assert!(
             explain(&stderr)
                 .unwrap()
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn explain_takes_the_last_error() {
-        let stderr = format!("{}\n{}", DRM, NO_FORMAT);
+        let stderr = format!("{DRM}\n{NO_FORMAT}");
         assert!(
             explain(&stderr)
                 .unwrap()

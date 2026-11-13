@@ -52,8 +52,9 @@ pub(crate) async fn run_job(
     if let Some(p) = finalize_job(&result, &manager, &job_id) {
         let _ = app.emit(PROGRESS_EVENT, &p);
     }
+    executor.release(&job_id);
 
-    DownloadManager::try_start_pending(manager, settings_store);
+    DownloadManager::try_start_pending(&manager, &settings_store);
 }
 
 async fn forward_progress(
@@ -93,7 +94,7 @@ fn apply_progress(j: &mut Job, progress: &DownloadProgress) {
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or(&progress.filename);
-        format!("{}.mp3", stem)
+        format!("{stem}.mp3")
     } else {
         progress.filename.clone()
     });
@@ -123,7 +124,7 @@ fn finalize_job(
         }
         Err(e) => {
             let error_msg = e.to_string();
-            log::error!("Download failed for job {}: {}", job_id, error_msg);
+            log::error!("Download failed for job {job_id}: {error_msg}");
             j.status = JobStatus::Failed;
             j.error = Some(error_msg);
             Some(j.progress_event())

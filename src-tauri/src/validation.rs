@@ -5,13 +5,12 @@ use url::{Host, Url};
 use crate::error::AppError;
 
 pub fn validate_url(raw: &str) -> Result<(), AppError> {
-    let url = Url::parse(raw).map_err(|_| AppError::Validation(format!("Invalid URL: {}", raw)))?;
+    let url = Url::parse(raw).map_err(|_| AppError::Validation(format!("Invalid URL: {raw}")))?;
 
     let scheme = url.scheme();
     if scheme != "http" && scheme != "https" {
         return Err(AppError::Validation(format!(
-            "URL must use http or https protocol, got '{}'",
-            scheme
+            "URL must use http or https protocol, got '{scheme}'"
         )));
     }
 
@@ -27,7 +26,7 @@ pub fn validate_url(raw: &str) -> Result<(), AppError> {
             }
         }
         Some(Host::Ipv4(v4)) => {
-            if is_private_ipv4(&v4) {
+            if is_private_ipv4(v4) {
                 return Err(AppError::Validation(
                     "Private IP addresses are not allowed".to_string(),
                 ));
@@ -45,20 +44,19 @@ pub fn validate_url(raw: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-fn is_private_ipv4(v4: &Ipv4Addr) -> bool {
+fn is_private_ipv4(v4: Ipv4Addr) -> bool {
     v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
 }
 
 fn is_private_ipv6(v6: &Ipv6Addr) -> bool {
     // IPv4-mapped IPv6 (::ffff:x.x.x.x) — SSRF bypass prevention
     if let Some(mapped_v4) = v6.to_ipv4_mapped() {
-        return is_private_ipv4(&mapped_v4);
+        return is_private_ipv4(mapped_v4);
     }
     v6.is_loopback() || v6.is_unspecified() || v6.is_unique_local() || v6.is_unicast_link_local()
 }
 
-/// Allow yt-dlp format selection syntax: alphanumeric and +-./*[]!=<>~^,()@
-/// Reject shell-dangerous chars: spaces, ;|&`$'"\  and control chars.
+/// Allowlist covers yt-dlp's format selector syntax.
 pub fn validate_format_id(format_id: &str) -> Result<(), AppError> {
     if format_id.is_empty() {
         return Err(AppError::Validation(
@@ -70,8 +68,7 @@ pub fn validate_format_id(format_id: &str) -> Result<(), AppError> {
         .all(|c| c.is_alphanumeric() || "+-_./*[]!=<>~^,()@".contains(c));
     if !valid {
         return Err(AppError::Validation(format!(
-            "Invalid format ID: {}",
-            format_id
+            "Invalid format ID: {format_id}"
         )));
     }
     Ok(())
@@ -84,7 +81,7 @@ mod tests {
 
     fn is_private_ip(ip: &IpAddr) -> bool {
         match ip {
-            IpAddr::V4(v4) => is_private_ipv4(v4),
+            IpAddr::V4(v4) => is_private_ipv4(*v4),
             IpAddr::V6(v6) => is_private_ipv6(v6),
         }
     }

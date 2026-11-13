@@ -34,8 +34,7 @@ impl DownloadManager {
     pub fn ensure_capacity(&self, additional: usize) -> Result<(), AppError> {
         if self.jobs.len() + additional > MAX_JOBS {
             return Err(AppError::QueueFull(format!(
-                "Job queue is full (max {})",
-                MAX_JOBS
+                "Job queue is full (max {MAX_JOBS})"
             )));
         }
         Ok(())
@@ -83,14 +82,14 @@ impl DownloadManager {
         let job = self
             .jobs
             .get_mut(id)
-            .ok_or_else(|| AppError::NotFound(format!("Job {} not found", id)))?;
+            .ok_or_else(|| AppError::NotFound(format!("Job {id} not found")))?;
 
         // A cancel racing with completion must not relabel a finished job.
         if job.status.is_terminal() {
             return Ok(());
         }
-        if job.status == JobStatus::Downloading {
-            self.executor.cancel(id);
+        if job.status == JobStatus::Downloading && !self.executor.cancel(id) {
+            return Ok(());
         }
 
         job.status = JobStatus::Cancelled;
@@ -98,7 +97,7 @@ impl DownloadManager {
         Ok(())
     }
 
-    pub fn cancel_all(&mut self) -> u32 {
+    pub fn cancel_all(&mut self) -> usize {
         let ids: Vec<String> = self
             .jobs
             .values()
@@ -106,23 +105,23 @@ impl DownloadManager {
             .map(|j| j.id.clone())
             .collect();
 
-        let count = ids.len() as u32;
+        let count = ids.len();
         for id in ids {
             let _ = self.cancel_job(&id);
         }
         count
     }
 
-    pub fn clear_completed(&mut self) -> u32 {
+    pub fn clear_completed(&mut self) -> usize {
         let before = self.jobs.len();
         self.jobs.retain(|_, j| !j.status.is_terminal());
-        (before - self.jobs.len()) as u32
+        before - self.jobs.len()
     }
 
-    /// Call after add_job or job completion to fill available concurrency slots.
+    /// Call after `add_job` or job completion to fill available concurrency slots.
     pub fn try_start_pending(
-        manager: Arc<Mutex<DownloadManager>>,
-        settings_store: Arc<Mutex<SettingsStore>>,
+        manager: &Arc<Mutex<DownloadManager>>,
+        settings_store: &Arc<Mutex<SettingsStore>>,
     ) {
         let max_concurrent = settings_store.lock().get().max_concurrent as usize;
         // Counting and claiming slots under one guard; concurrent callers would otherwise

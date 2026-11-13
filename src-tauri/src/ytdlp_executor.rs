@@ -26,6 +26,8 @@ enum ProcessSlot {
     Running(u32),
     // cancel() arrived before run_process registered a pid; honoured at registration.
     CancelRequested,
+    // Exited but not yet finalized; a cancel now must not relabel the job.
+    Finished,
 }
 
 pub struct YtdlpExecutor {
@@ -54,12 +56,12 @@ impl YtdlpExecutor {
                 "--flat-playlist",
                 "--dump-single-json",
                 "--playlist-items",
-                &format!("1:{}", max_playlist_items),
+                &format!("1:{max_playlist_items}"),
                 url,
             ])
             .output()
             .await
-            .map_err(|e| AppError::Process(format!("Failed to spawn yt-dlp: {}", e)))?;
+            .map_err(|e| AppError::Process(format!("Failed to spawn yt-dlp: {e}")))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -69,7 +71,7 @@ impl YtdlpExecutor {
         }
 
         let data: serde_json::Value = serde_json::from_slice(&output.stdout)
-            .map_err(|e| AppError::Internal(format!("Failed to parse yt-dlp output: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("Failed to parse yt-dlp output: {e}")))?;
 
         if data["_type"].as_str() == Some("playlist") {
             return Ok(parse_playlist(&data));
@@ -102,7 +104,7 @@ impl YtdlpExecutor {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
-            .map_err(|e| AppError::Process(format!("Failed to spawn yt-dlp: {}", e)))?;
+            .map_err(|e| AppError::Process(format!("Failed to spawn yt-dlp: {e}")))?;
 
         // Taken before the pid is registered so an early return here cannot leave a
         // stale entry that a later cancel would signal at a recycled pid.
@@ -177,7 +179,9 @@ impl YtdlpExecutor {
 
         let wait_result = child.wait().await;
         let stderr_result = stderr_task.await;
-        self.processes.lock().remove(&job.id);
+        self.processes
+            .lock()
+            .insert(job.id.clone(), ProcessSlot::Finished);
 
         let exit_status = wait_result.map_err(|e| AppError::Process(e.to_string()))?;
         let (stderr_text, saw_ffmpeg_missing) =
@@ -192,7 +196,7 @@ impl YtdlpExecutor {
         if !exit_status.success() {
             let msg = explain(&stderr_text).unwrap_or_else(|| {
                 if stderr_text.trim().is_empty() {
-                    format!("yt-dlp exited with {}", exit_status)
+                    format!("yt-dlp exited with {exit_status}")
                 } else {
                     stderr_text.trim().to_string()
                 }
@@ -203,14 +207,20 @@ impl YtdlpExecutor {
         Ok(merged_filename)
     }
 
-    pub fn cancel(&self, job_id: &str) {
+    /// Returns `false` once the process has exited; the job's outcome is then the runner's.
+    #[must_use]
+    pub fn cancel(&self, job_id: &str) -> bool {
         let pid = {
             let mut processes = self.processes.lock();
-            match processes.remove(job_id) {
-                Some(ProcessSlot::Running(pid)) => pid,
-                _ => {
+            match processes.get(job_id) {
+                Some(ProcessSlot::Finished) => return false,
+                Some(&ProcessSlot::Running(pid)) => {
+                    processes.remove(job_id);
+                    pid
+                }
+                Some(ProcessSlot::CancelRequested) | None => {
                     processes.insert(job_id.to_string(), ProcessSlot::CancelRequested);
-                    return;
+                    return true;
                 }
             }
         };
@@ -230,11 +240,17 @@ impl YtdlpExecutor {
                 }
             }
         });
+        true
+    }
+
+    /// Call after the outcome is recorded; see `ProcessSlot::Finished`.
+    pub fn release(&self, job_id: &str) {
+        self.processes.lock().remove(job_id);
     }
 }
 
 fn build_args(job: &Job, ffmpeg_path: Option<&Path>) -> Vec<String> {
-    let progress_template = format!("{}%(progress)j", PROGRESS_PREFIX);
+    let progress_template = format!("{PROGRESS_PREFIX}%(progress)j");
     let mut args = vec![
         // A user's global config could otherwise override -f and -o, or set --quiet
         // and suppress the stderr warnings run_process reads.
@@ -383,7 +399,7 @@ mod tests {
         let job = test_job(None, false);
         let (tx, _rx) = mpsc::channel(8);
 
-        executor.cancel(&job.id);
+        assert!(executor.cancel(&job.id));
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(5),
             executor.run_process(vec!["30".to_string()], &job, &settings, tx),
@@ -409,7 +425,7 @@ mod tests {
             ) {
                 tokio::task::yield_now().await;
             }
-            executor.cancel(&job.id);
+            assert!(executor.cancel(&job.id));
         };
         let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
             tokio::join!(run, cancel)
@@ -418,6 +434,22 @@ mod tests {
         .expect("running process must stop on cancel");
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn cancel_after_exit_leaves_outcome_to_runner() {
+        let (executor, settings) = sleep_executor();
+        let job = test_job(None, false);
+        let (tx, _rx) = mpsc::channel(8);
+
+        let result = executor
+            .run_process(vec!["0".to_string()], &job, &settings, tx)
+            .await;
+
+        assert!(result.is_ok());
+        assert!(!executor.cancel(&job.id));
+        executor.release(&job.id);
+        assert!(executor.processes.lock().is_empty());
     }
 
     #[test]

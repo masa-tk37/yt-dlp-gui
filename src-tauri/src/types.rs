@@ -36,7 +36,7 @@ pub struct Job {
     pub error: Option<String>,
     pub created_at: String,
     pub completed_at: Option<String>,
-    /// Insertion order; created_at can tie within one bulk add.
+    /// Insertion order; `created_at` can tie within one bulk add.
     #[serde(skip)]
     pub seq: u64,
 }
@@ -76,6 +76,10 @@ pub struct DownloadProgress {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Format {
+    #[expect(
+        clippy::struct_field_names,
+        reason = "mirrors yt-dlp's format_id and the TS formatId field"
+    )]
     pub format_id: String,
     pub ext: String,
     pub resolution: Option<String>,
@@ -120,7 +124,7 @@ pub struct ToolInfo {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DependencyStatus {
-    /// Whether setup() built the download manager; the tool probe below is display only.
+    /// Whether `setup()` built the download manager; the tool probe below is display only.
     pub backend_ready: bool,
     pub ytdlp: Option<ToolInfo>,
     pub ffmpeg: Option<ToolInfo>,
